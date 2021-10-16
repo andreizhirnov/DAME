@@ -1,0 +1,14 @@
+Package: DAME
+Title: DAME: substantively meaningful and empirically driven interpretations of interactive nonlinear models. 
+Version: 1.0.1
+Authors@R: c(
+    person("Evgeny", "Sedashov", email = "esedash1@binghamton.edu", role = c("aut","cre")),
+    person("Mert", "Moral", email = "mmoral17@binghamton.edu", role = "aut"),
+    person("Andrei", "Zhirnov", email = "azhirno1@binghamton.edu", role = "aut"))
+Description: Provides functions to compute ME and DAME as well as functions for easy-to-implement visualizations
+Depends: R (>= 3.4.1), ggplot2, grid
+License: GPL (==3)
+Encoding: UTF-8
+LazyData: true
+Imports: MASS, Deriv, gstat, sp
+RoxygenNote: 6.1.1
