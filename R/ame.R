@@ -6,6 +6,10 @@
 #' the QR components of the design matrix if arguments \code{formula}, \code{data}, \code{link}, \code{coefficients}, and/or
 #' \code{variance} are not explicitly specified.
 #' @param data The dataset to be used to compute marginal effects. DAME provides most meaningful results if the original dataset is used for computing marginal effects.
+#' @param formula The formula used in estimation (if not specified, it is extracted from the fitted model object).
+#' @param link The link function used in estimation (if not specified, it is extracted from the fitted model object).
+#' @param coefficients The named vector of coefficients produced during the estimation (if not specified, it is extracted from the fitted model object).
+#' @param variance The variance-covariance matrix to be used for computing standard errors (if not specified, it is extracted from the fitted model object).
 #' @param discrete A logical variable. If TRUE, the function will compute the effect of a discrete change in \code{x}. If FALSE, the function will compute the partial derivative of \code{x}.
 #' @param discrete_step The size of a discrete change in \code{x} used in computations (used only if \code{discrete=TRUE}).
 #' @param at A named list of values of independent variables. These variables will be set to these value before computations. All other quantitative variables (except \code{x} and \code{over}) will be set to their means. All other factor variables will be set to their modes.
@@ -64,19 +68,19 @@ ame <- function(x, model = NULL, data = NULL, formula = NULL, link = NULL,
       stop("Invalid link name. Valid links include 'logit','probit','cauchit','cloglog','identity','log','sqrt','1/mu^2','inverse'", call. = FALSE)
     }
   }
-  make.dydm(link=link)
+  dyli <- make.dydm(link=link)
 ## make a data frame specific to AME
-  makeframes.ame(data=data,allvars=allvars,at=at)
+  mfli <- makeframes.ame(data=data,allvars=allvars,at=at)
 ##  computation
   if (mc) {
     effects <- simulated.me(discrete=discrete, discrete_step=discrete_step, iter=iter, coefficients=coefficients, variance=variance,
-                              data=data.compressed, x = x, formula=updform, ym=ym, mx=mx, dydm=dydm, wmat=wmat, pct=pct)
+                              data=mfli$data.compressed, x = x, formula=updform, ym=dyli$ym, mx=mx, dydm=dyli$dydm, wmat=mfli$wmat, pct=pct)
   } else {
     effects <- analytical.me(discrete=discrete, discrete_step=discrete_step, coefficients=coefficients, variance=variance,
-                               data=data.compressed, x = x, formula=updform, ym=ym, mx=mx, dydm=dydm, d2ydm2=d2ydm2, wmat=wmat, pct=pct)
+                               data=mfli$data.compressed, x = x, formula=updform, ym=dyli$ym, mx=mx, dydm=dyli$dydm, d2ydm2=dyli$d2ydm2, wmat=mfli$wmat, pct=pct)
   }
   ## merge in other variables
-  if (nrow(grid) > 0) effects <- cbind(effects,grid)
+  if (nrow(mfli$grid) > 0) effects <- cbind(effects,mfli$grid)
   rownames(effects) <- c()
   list("ame" = effects, "execute_time" = Sys.time() - start_time)
 }

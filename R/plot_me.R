@@ -8,6 +8,10 @@
 #' the QR components of the design matrix if arguments \code{formula}, \code{data}, \code{link}, \code{coefficients}, and/or
 #' \code{variance} are not explicitly specified.
 #' @param data The dataframe used in estimation.
+#' @param formula The formula used in estimation (if not specified, it is extracted from the fitted model object).
+#' @param link The link function used in estimation (if not specified, it is extracted from the fitted model object).
+#' @param coefficients The named vector of coefficients produced during the estimation (if not specified, it is extracted from the fitted model object).
+#' @param variance The variance-covariance matrix to be used for computing standard errors (if not specified, it is extracted from the fitted model object).
 #' @param x The independent variable whose effect is being assessed. This variable is mapped along the vertical axis.
 #' @param over The second independent variable. This variable is mapped along the horizontal axis.
 #' @param at A named list of the values for other indepedent variables. Unless listed, other continuous variables
@@ -24,10 +28,6 @@
 #' \code{waiver()} by default.
 #' @param breaks_hl Numeric vector specifying probability axis for the left histogram.
 #' \code{waiver()} by default.
-#' @param geom_hl Specifies ggplot layer of the type \code{geom_histogram} for the left histogram.
-#' If NULL, default settings are used.
-#' @param geom_hb Specifies ggplot layer of the type \code{geom_histogram} for the bottom histogram.
-#' If NULL, default settings are used.
 #' @param theme_hl The theme for the left panel. Function \code{theme} from \code{ggplot2} package.
 #' @param theme_hb The theme for the bottom panel. Function \code{theme} from \code{ggplot2} package.
 #' @param theme_mp The theme for the main panel. Function \code{theme} from \code{ggplot2} package.
@@ -50,6 +50,7 @@
 #' @export
 #' @import ggplot2
 #' @import grid
+#' @import gtable
 
 plot_me <- function(x, over, model = NULL, data = NULL,
                     link = NULL, formula = NULL, coefficients = NULL, variance = NULL,
@@ -59,8 +60,6 @@ plot_me <- function(x, over, model = NULL, data = NULL,
                     gradient=c("#f2e6e7", "#f70429"),
                     breaks_hor=waiver(), breaks_ver=waiver(),
                     breaks_hb=waiver(), breaks_hl=waiver(),
-                    geom_hl = geom_histogram(aes(y=stat(count)/sum(stat(count)))),
-                    geom_hb = geom_histogram(aes(y=stat(count)/sum(stat(count)))),
                     theme_mp=theme_bw() + theme(panel.grid.minor = element_blank(),
                                                 panel.grid.major = element_blank(),
                                                 panel.border = element_rect(colour = "black"),
@@ -100,7 +99,7 @@ plot_me <- function(x, over, model = NULL, data = NULL,
     required=c("x","over","formula","data","link","coefficients","variance"),
     types = list(x = "character", over = "character",  data = "data.frame", link = "character", formula = "formula", coefficients = "numeric", variance = "matrix", at = "list",
                  mc = "logical", iter = "integer", heatmap_dim = "integer", p = "numeric", gradient = "character", breaks_hor = "numeric", breaks_ver = "numeric", breaks_hb = "numeric", breaks_hl = "numeric",
-                 geom_hl = "Layer", geom_hb = "Layer", theme_mp = "theme", theme_hl = "theme", theme_hb = "theme"),
+                 theme_mp = "theme", theme_hl = "theme", theme_hb = "theme"),
     lengths = list(x = 1L, over = 1L, link = 1L, mc = 1L, iter = 1L, heatmap_dim = 2L, p = 1L, gradient = 2L)
   )
   check.args(args=args, checks=checks)
@@ -131,7 +130,7 @@ plot_me <- function(x, over, model = NULL, data = NULL,
   }
   # preliminaries
   condvar <- setdiff(allvars,x)
-  make.dydm(link=link)
+  dyli <- make.dydm(link=link)
   colsum <- c(at,lapply(data[intersect(allvars,setdiff(names(data),c(names(at),x,over)))], function(x) if (is.numeric(x)) return(mean(x,na.rm=TRUE)) else return(find.mode(x))))
   # prepare dataframe for heatmap
   data.hm <- list()
@@ -146,28 +145,28 @@ plot_me <- function(x, over, model = NULL, data = NULL,
   data.hl <- aggregate(list("proportion" = 1L:nrow(newdata)), by = newdata[x], FUN = length)
   data.hl[["proportion"]] <- data.hl[["proportion"]]/sum(data.hl[["proportion"]])
   # compute ME
-  mf.hm <- model.frame(formula = updform, data = data.hm)
-  mf.sp <- model.frame(formula = updform, data = data.sp)
-  mmat.hm <- model.matrix(object = updform, data = mf.hm)
-  mmat.sp <- model.matrix(object = updform, data = mf.sp)
+  mf.hm <- stats::model.frame(formula = updform, data = data.hm)
+  mf.sp <- stats::model.frame(formula = updform, data = data.sp)
+  mmat.hm <- stats::model.matrix(object = updform, data = mf.hm)
+  mmat.sp <- stats::model.matrix(object = updform, data = mf.sp)
   beta.names <- intersect(names(coefficients),colnames(mmat.hm))
   if (length(beta.names) == 0) stop("Failed to associate the coefficients with the columns names in the dataset", call. = FALSE)
   coef_vect <- matrix(coefficients[beta.names],nrow=1L)
   var_covar <- variance[beta.names,beta.names]
   mmat.hm <- mmat.hm[,beta.names,drop=FALSE]
   mmat.sp <- mmat.sp[,beta.names,drop=FALSE]
-  make.dmdx(formula=formula,bnames=beta.names,xvarname=x)
+  dmli <- make.dmdx(formula=formula,bnames=beta.names,xvarname=x)
   if (mc) {
     coef_matrix <- MASS::mvrnorm(n = iter, mu = coef_vect, Sigma = var_covar, empirical = TRUE)
-    me_matrix.hm <- dydm(mx(mmat = mmat.hm, coefficients = coef_matrix)) * dmdx(mmat = mmat.hm, data=data.hm, coefficients = coef_matrix)
-    me_matrix.sp <- dydm(mx(mmat = mmat.sp, coefficients = coef_matrix)) * dmdx(mmat = mmat.sp, data=data.sp, coefficients = coef_matrix)
+    me_matrix.hm <- dyli[["dydm"]](mx(mmat = mmat.hm, coefficients = coef_matrix)) * dmli[["dmdx"]](mmat = mmat.hm, data=data.hm, coefficients = coef_matrix)
+    me_matrix.sp <- dyli[["dydm"]](mx(mmat = mmat.sp, coefficients = coef_matrix)) * dmli[["dmdx"]](mmat = mmat.sp, data=data.sp, coefficients = coef_matrix)
     estimate.hm <- colMeans(me_matrix.hm)
-    plotdata.sp <- data.frame("estimate" = colMeans(me_matrix.sp), "se" = apply(me_matrix.sp, 2L, sd))
+    plotdata.sp <- data.frame("estimate" = colMeans(me_matrix.sp), "se" = apply(me_matrix.sp, 2L, stats::sd))
   } else {
-    estimate.hm <- as.vector(dydm(mx(mmat = mmat.hm, coefficients = coef_vect)) * dmdx(mmat = mmat.hm, data=data.hm, coefficients = coef_vect))
-    plotdata.sp <- data.frame("estimate" = as.vector(dydm(mx(mmat = mmat.sp, coefficients = coef_vect)) * dmdx(mmat = mmat.sp, data=data.sp, coefficients = coef_vect)))
+    estimate.hm <- as.vector(dyli[["dydm"]](mx(mmat = mmat.hm, coefficients = coef_vect)) * dmli[["dmdx"]](mmat = mmat.hm, data=data.hm, coefficients = coef_vect))
+    plotdata.sp <- data.frame("estimate" = as.vector(dyli[["dydm"]](mx(mmat = mmat.sp, coefficients = coef_vect)) * dmli[["dmdx"]](mmat = mmat.sp, data=data.sp, coefficients = coef_vect)))
     m_0 <- as.vector(mx(mmat = mmat.sp, coefficients = coef_vect))
-    L <- d2ydm2(m_0)*as.vector(dmdx(mmat = mmat.sp, data=data.sp, coefficients = coef_vect))*dmdb(mmat = mmat.sp, data=data.sp) + dydm(m_0)*d2mdxdb(mmat=mmat.sp, data = data.sp)
+    L <- dyli[["d2ydm2"]](m_0)*as.vector(dmli[["dmdx"]](mmat = mmat.sp, data=data.sp, coefficients = coef_vect))*dmli[["dmdb"]](mmat = mmat.sp, data=data.sp) + dyli[["dydm"]](m_0)*dmli[["d2mdxdb"]](mmat=mmat.sp, data = data.sp)
     var <- as.vector(apply(L,1L, function(x) (x %*% var_covar) %*% x))
     var[var < 0] <- 0
     plotdata.sp[["se"]] <- sqrt(var)
@@ -186,7 +185,7 @@ plot_me <- function(x, over, model = NULL, data = NULL,
   mainpanel <- ggplot(data = data.hm, aes_string(x = over, y = x)) +
     geom_raster(aes(fill = estimate.hm), interpolate=TRUE) +
     geom_point(data = plotdata.sp,
-               aes(x = horizontal, y = vertical, size = size, shape = significance),
+               aes_string(x = "horizontal", y = "vertical", size = "size", shape = "significance"),
                color = "black") +
     scale_shape_manual(values=c(1,16))+
     scale_fill_gradient(low = gradient[1], high = gradient[2])+
@@ -223,28 +222,28 @@ plot_me <- function(x, over, model = NULL, data = NULL,
   }
   adj <- findnull(gt1[["widths"]]) - findnull(gt2[["widths"]])
   if (adj>0) {
-    gt2 <- gtable::gtable_add_cols(x = gt2, widths = unit(rep(0,adj),"cm"), pos = 0)
+    gt2 <- gtable::gtable_add_cols(x = gt2, widths = grid::unit(rep(0,adj),"cm"), pos = 0)
   } else if (adj<0) {
-    gt1 <- gtable::gtable_add_cols(x = gt1, widths = unit(rep(0,-adj),"cm"), pos = 0)
+    gt1 <- gtable::gtable_add_cols(x = gt1, widths = grid::unit(rep(0,-adj),"cm"), pos = 0)
   }
   adj <- length(gt1[["widths"]]) - length(gt2[["widths"]])
   if (adj>0) {
-    gt2 <- gtable::gtable_add_cols(x = gt2, widths = unit(rep(0,adj),"cm"), pos = -1)
+    gt2 <- gtable::gtable_add_cols(x = gt2, widths = grid::unit(rep(0,adj),"cm"), pos = -1)
   } else if (adj<0) {
-    gt1 <- gtable::gtable_add_cols(x = gt1, widths = unit(rep(0,adj<0),"cm"), pos = -1)
+    gt1 <- gtable::gtable_add_cols(x = gt1, widths = grid::unit(rep(0,adj<0),"cm"), pos = -1)
   }
   gt <- rbind(gt1, gt2, size="first")
   adj <- findnull(gt[["heights"]]) - findnull(gt3[["heights"]])
   if (adj>0) {
-    gt3 <- gtable::gtable_add_rows(x = gt3, heights = unit(rep(0,adj),"cm"), pos = 0)
+    gt3 <- gtable::gtable_add_rows(x = gt3, heights = grid::unit(rep(0,adj),"cm"), pos = 0)
   } else if (adj<0) {
-    gt <- gtable::gtable_add_rows(x = gt, heights = unit(rep(0,-adj),"cm"), pos = 0)
+    gt <- gtable::gtable_add_rows(x = gt, heights = grid::unit(rep(0,-adj),"cm"), pos = 0)
   }
   adj <- length(gt[["heights"]]) - length(gt3[["heights"]])
   if (adj>0) {
-    gt3 <- gtable::gtable_add_rows(x = gt3, heights = unit(rep(0,adj),"cm"), pos = -1)
+    gt3 <- gtable::gtable_add_rows(x = gt3, heights = grid::unit(rep(0,adj),"cm"), pos = -1)
   } else if (adj<0) {
-    gt <- gtable::gtable_add_rows(x = gt, heights = unit(rep(0,-adj),"cm"), pos = -1)
+    gt <- gtable::gtable_add_rows(x = gt, heights = grid::unit(rep(0,-adj),"cm"), pos = -1)
   }
   mid1 <- length(gt[["heights"]])
   mid2 <- length(gt3[["heights"]])
@@ -263,9 +262,9 @@ plot_me <- function(x, over, model = NULL, data = NULL,
     }
     result
   }
-  range_l <- 1L:length(gt3[["widths"]])
+  range_l <- seq_along(gt3[["widths"]])
   range_r <- (length(gt3[["widths"]])+1L):length(gt[["widths"]])
-  range_t <- 1L:length(gt1[["heights"]])
+  range_t <- seq_along(gt1[["heights"]])
   range_b <- (length(gt1[["heights"]])+1L):length(gt[["heights"]])
   gt[["widths"]][range_l] <- adjust_dim(gt[["widths"]][range_l],c_widths[1L])
   gt[["widths"]][range_r] <- adjust_dim(gt[["widths"]][range_r],c_widths[2L])

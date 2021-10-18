@@ -1,3 +1,6 @@
+#' @importFrom stats aggregate na.omit
+
+
 makeframes.ame <- function(data,allvars,at) {
   varying <- na.omit(data[intersect(allvars,setdiff(names(data),names(at)))])
   grid <- expand.grid(at)
@@ -17,9 +20,7 @@ makeframes.ame <- function(data,allvars,at) {
     grid.prep <- as.matrix(combo[order(combo[["X_rows"]]),paste0("X_cols.",1L:nrow(grid))]) * combo[order(combo[["X_rows"]]),"X_numerator"]
     wmat <- grid.prep %*% diag(1/colSums(grid.prep))
   }
-  assign("data.compressed", data.compressed, envir=parent.frame())
-  assign("grid", grid, envir=parent.frame())
-  assign("wmat", wmat, envir=parent.frame())
+  list(data.compressed=data.compressed, grid=grid, wmat=wmat)
 }
 
 makeframes.dame <- function(data,allvars,at,over,x) {
@@ -55,9 +56,7 @@ makeframes.dame <- function(data,allvars,at,over,x) {
     grid.prep <- as.matrix(combo[order(combo[["X_rows"]]),paste0("X_cols.",1L:nrow(grid))]) * combo[order(combo[["X_rows"]]),"X_numerator"]
     wmat <- grid.prep %*% diag(1/colSums(grid.prep))
   }
-  assign("data.compressed", data.compressed, envir=parent.frame())
-  assign("grid", grid, envir=parent.frame())
-  assign("wmat", wmat, envir=parent.frame())
+  list(data.compressed=data.compressed, grid=grid, wmat=wmat)
 }
 
 makeframes.me <- function(data,allvars,at,over,x) {
@@ -69,15 +68,11 @@ makeframes.me <- function(data,allvars,at,over,x) {
     uniqover <- unique(varying[c(x,over)])
     grid <- merge(expand.grid(c(at,atmeans)), uniqover, by = NULL)
   }
-  assign("data.compressed", grid, envir=parent.frame())
-  assign("grid", grid, envir=parent.frame())
-  assign("wmat", NULL, envir=parent.frame())
+  list(data.compressed=grid, grid=grid, wmat=NULL)
 }
 
 makeframes.mem <- function(data,allvars,at) {
   atmeans <- lapply(data[intersect(allvars,setdiff(names(data),names(at)))], function(x) if (is.numeric(x)) return(mean(x,na.rm=TRUE)) else return(find.mode(x)))
   grid <- expand.grid(c(at,atmeans))
-  assign("data.compressed", grid, envir=parent.frame())
-  assign("grid", grid, envir=parent.frame())
-  assign("wmat", NULL, envir=parent.frame())
+  list(data.compressed=grid, grid=grid, wmat=NULL)
 }

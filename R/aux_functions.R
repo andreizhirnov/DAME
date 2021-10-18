@@ -1,3 +1,5 @@
+#' @importFrom methods as
+
 make.dydm <- function (link)
 {
   switch(EXPR=link,
@@ -7,14 +9,13 @@ make.dydm <- function (link)
            d2ydm2 <- function(mu) {d <- ym(mu); d*(1-d)*(1-2*d)}
          },
          "probit" = {
-           ym <- function(mu) pnorm(mu)
-           dydm <- function(mu) dnorm(mu)
-           d2ydm2 <- function(mu) -mu*dnorm(mu)
+           ym <- function(mu) stats::pnorm(mu)
+           dydm <- function(mu) stats::dnorm(mu)
+           d2ydm2 <- function(mu) -mu*stats::dnorm(mu)
          },
          "cauchit" = {
-           ym <- function(mu) pcauchy(mu)
-           dydm <- function(mu) dcauchy(mu)
-           d2ydm2 <- function(mu) { d <- dcauchy(mu); -2*mu*d^2}
+           ym <- function(mu) stats::pcauchy(mu)
+           dydm <- function(mu) stats::dcauchy(mu)
          },
          "cloglog" = {
            ym <- function(mu) -expm1(-exp(mu))
@@ -47,9 +48,7 @@ make.dydm <- function (link)
            d2ydm2 <- function(mu) 2*mu^(-3)
          }
   )
-  assign("ym", ym, envir=parent.frame())
-  assign("dydm", dydm, envir=parent.frame())
-  assign("d2ydm2", d2ydm2, envir=parent.frame())
+  list(ym=ym,dydm=dydm,d2ydm2=d2ydm2)
 }
 
 clean.calls <- function(x) {
@@ -70,7 +69,7 @@ make.dmdx <- function(formula, bnames, xvarname) {
   mx.parts <- lapply(bnames, function(x) clean.calls(str2lang(noquote(x))))
   names(mx.parts) <- bnames
   dmdx.parts <- lapply(mx.parts, function(x) {
-    tryCatch(D(x,xvarname), error = function(e) {cat("Warning: Could not find the derivative of",x," and will replace it with zero"); 0})
+    tryCatch(stats::D(x,xvarname), error = function(e) {cat("Warning: Could not find the derivative of",x," and will replace it with zero"); 0})
   })
   dmdb <- function(mmat, data) {
     mmatd <- as.data.frame(mmat)
@@ -88,9 +87,7 @@ make.dmdx <- function(formula, bnames, xvarname) {
     parts <- do.call("cbind",lapply(dmdx.parts, function(x) eval(x, envir = upddata)))
     coefficients %*% t(parts)
   }
-  assign("dmdx",dmdx, envir=parent.frame())
-  assign("dmdb", dmdb , envir=parent.frame())
-  assign("d2mdxdb", d2mdxdb, envir=parent.frame())
+  list(dmdx=dmdx,dmdb=dmdb,d2mdxdb=d2mdxdb)
 }
 
 find.mode <- function(x) {
@@ -99,8 +96,8 @@ find.mode <- function(x) {
 }
 
 simulated.me <- function(discrete, discrete_step, iter, coefficients, variance, data, x, formula, ym, mx, dydm, wmat = NULL, pct) {
-  mf <- model.frame(formula = formula, data = data)
-  mmat <- model.matrix(object = formula, data = mf)
+  mf <- stats::model.frame(formula = formula, data = data)
+  mmat <- stats::model.matrix(object = formula, data = mf)
   beta.names <- intersect(names(coefficients),colnames(mmat))
   if (length(beta.names) == 0) stop("Failed to link the supplied coefficients to the formula", call. = FALSE)
   mmat <- mmat[,beta.names,drop=FALSE]
@@ -110,8 +107,8 @@ simulated.me <- function(discrete, discrete_step, iter, coefficients, variance, 
   if (discrete == TRUE) {
     data_offset <- data
     data_offset[[x]] <- data_offset[[x]] + discrete_step
-    mf_offset <- model.frame(formula = formula, data = data_offset)
-    mmat_offset <- model.matrix(object = formula, data = mf_offset)
+    mf_offset <- stats::model.frame(formula = formula, data = data_offset)
+    mmat_offset <- stats::model.matrix(object = formula, data = mf_offset)
     mmat_offset <- mmat_offset[,beta.names]
     bulk <- try(ym(mx(mmat = mmat_offset, coefficients = coef_matrix)) - ym(mx(mmat = mmat, coefficients = coef_matrix)), silent=TRUE)
     if (inherits(bulk,'try-error') & nrow(mmat) < iter) {
@@ -126,17 +123,17 @@ simulated.me <- function(discrete, discrete_step, iter, coefficients, variance, 
       }
     }
   } else {
-    make.dmdx(formula = formula, bnames = beta.names, xvarname=x)
-      bulk <- try(dydm(mx(mmat = mmat, coefficients = coef_matrix)) * dmdx(mmat = mmat, data=data, coefficients = coef_matrix), silent=TRUE)
+    dmli <- make.dmdx(formula = formula, bnames = beta.names, xvarname=x)
+      bulk <- try(dydm(mx(mmat = mmat, coefficients = coef_matrix)) * dmli$dmdx(mmat = mmat, data=data, coefficients = coef_matrix), silent=TRUE)
       if (inherits(bulk,'try-error') & nrow(mmat) < iter) {
       bulk <- matrix(NA,nrow=iter,ncol=nrow(mmat))
       for (i in 1L:nrow(mmat)) {
-        bulk[,i] <- dydm(mx(mmat = mmat[i,,drop=FALSE], coefficients = coef_matrix)) * dmdx(mmat = mmat[i,,drop=FALSE], data=data[i,,drop=FALSE], coefficients = coef_matrix)
+        bulk[,i] <- dydm(mx(mmat = mmat[i,,drop=FALSE], coefficients = coef_matrix)) * dmli$dmdx(mmat = mmat[i,,drop=FALSE], data=data[i,,drop=FALSE], coefficients = coef_matrix)
       }
       } else if (inherits(bulk,'try-error')) {
       bulk <- matrix(NA,nrow=iter,ncol=nrow(mmat))
       for (i in 1L:iter) {
-        bulk[i,] <- dydm(mx(mmat = mmat, coefficients = coef_matrix[i,,drop=FALSE])) * dmdx(mmat = mmat, data=data, coefficients = coef_matrix[i,,drop=FALSE])
+        bulk[i,] <- dydm(mx(mmat = mmat, coefficients = coef_matrix[i,,drop=FALSE])) * dmli$dmdx(mmat = mmat, data=data, coefficients = coef_matrix[i,,drop=FALSE])
       }
     }
   }
@@ -146,33 +143,33 @@ simulated.me <- function(discrete, discrete_step, iter, coefficients, variance, 
     me_matrix <- bulk %*% wmat
   }
   est <- colMeans(me_matrix)
-  se <- apply(me_matrix, 2L, sd)
-  quantiles <- lapply(pct/100, function(x) apply(me_matrix, 2L, quantile, probs = x, names = FALSE))
+  se <- apply(me_matrix, 2L, stats::sd)
+  quantiles <- lapply(pct/100, function(x) apply(me_matrix, 2L, stats::quantile, probs = x, names = FALSE))
   data.frame(est=as.vector(est),se=se,quantiles)
 }
 
 analytical.me <- function(discrete, discrete_step, coefficients, variance, data, x, formula, ym, mx, dydm, d2ydm2, wmat = NULL, pct) {
-  mf <- model.frame(formula = formula, data = data)
-  mmat <- model.matrix(object = formula, data = mf)
+  mf <- stats::model.frame(formula = formula, data = data)
+  mmat <- stats::model.matrix(object = formula, data = mf)
   beta.names <- intersect(names(coefficients),colnames(mmat))
   if (length(beta.names) == 0) stop("Failed to link the supplied coefficients to the formula", call. = FALSE)
   mmat <- mmat[,beta.names,drop=FALSE]
   coef_vect <- matrix(coefficients[beta.names], nrow=1L)
   var_covar <- variance[beta.names,beta.names]
-  make.dmdx(formula = formula, bnames = beta.names, xvarname=x)
+  dmli <- make.dmdx(formula = formula, bnames = beta.names, xvarname=x)
   m_0 <- as.vector(mx(mmat = mmat, coefficients = coef_vect))
   if (discrete == TRUE) {
     data_offset <- data
     data_offset[[x]] <- data_offset[[x]] + discrete_step
-    mf_offset <- model.frame(formula = formula, data = data_offset)
-    mmat_offset <- model.matrix(object = formula, data = mf_offset)
+    mf_offset <- stats::model.frame(formula = formula, data = data_offset)
+    mmat_offset <- stats::model.matrix(object = formula, data = mf_offset)
     mmat_offset <- mmat_offset[,beta.names,drop=FALSE]
     m_1 <- as.vector(mx(mmat = mmat_offset, coefficients = coef_vect))
     est <- ym(m_1) - ym(m_0)
-    L <- dydm(m_1)*dmdb(mmat = mmat_offset, data=data_offset) - dydm(m_0)*dmdb(mmat = mmat, data=data)
+    L <- dydm(m_1)*dmli$dmdb(mmat = mmat_offset, data=data_offset) - dydm(m_0)*dmli$dmdb(mmat = mmat, data=data)
     } else {
-    est <- dydm(m_0)*as.vector(dmdx(mmat = mmat, data=data, coefficients = coef_vect))
-    L <- d2ydm2(m_0)*as.vector(dmdx(mmat = mmat, data=data, coefficients = coef_vect))*dmdb(mmat = mmat, data=data) + dydm(m_0)*d2mdxdb(mmat=mmat, data = data)
+    est <- dydm(m_0)*as.vector(dmli$dmdx(mmat = mmat, data=data, coefficients = coef_vect))
+    L <- d2ydm2(m_0)*as.vector(dmli$dmdx(mmat = mmat, data=data, coefficients = coef_vect))*dmli$dmdb(mmat = mmat, data=data) + dydm(m_0)*dmli$d2mdxdb(mmat=mmat, data = data)
   }
   if (!is.null(wmat)) {
     est <- matrix(est,nrow=1L) %*% wmat

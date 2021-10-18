@@ -23,8 +23,6 @@ plot_me(
   breaks_ver = waiver(),
   breaks_hb = waiver(),
   breaks_hl = waiver(),
-  geom_hl = geom_histogram(aes(y = stat(count)/sum(stat(count)))),
-  geom_hb = geom_histogram(aes(y = stat(count)/sum(stat(count)))),
   theme_mp = theme_bw() + theme(panel.grid.minor = element_blank(), panel.grid.major =
     element_blank(), panel.border = element_rect(colour = "black"), axis.text.y =
     element_text(angle = 90), axis.title.x = element_blank(), axis.title.y =
@@ -53,6 +51,14 @@ the QR components of the design matrix if arguments \code{formula}, \code{data},
 
 \item{data}{The dataframe used in estimation.}
 
+\item{link}{The link function used in estimation (if not specified, it is extracted from the fitted model object).}
+
+\item{formula}{The formula used in estimation (if not specified, it is extracted from the fitted model object).}
+
+\item{coefficients}{The named vector of coefficients produced during the estimation (if not specified, it is extracted from the fitted model object).}
+
+\item{variance}{The variance-covariance matrix to be used for computing standard errors (if not specified, it is extracted from the fitted model object).}
+
 \item{at}{A named list of the values for other indepedent variables. Unless listed, other continuous variables
 are fixed at their means, and all factor variables are set to their modes.}
 
@@ -76,12 +82,6 @@ is the color of the lowest value, and second element is the color of the highest
 
 \item{breaks_hl}{Numeric vector specifying probability axis for the left histogram.
 \code{waiver()} by default.}
-
-\item{geom_hl}{Specifies ggplot layer of the type \code{geom_histogram} for the left histogram.
-If NULL, default settings are used.}
-
-\item{geom_hb}{Specifies ggplot layer of the type \code{geom_histogram} for the bottom histogram.
-If NULL, default settings are used.}
 
 \item{theme_mp}{The theme for the main panel. Function \code{theme} from \code{ggplot2} package.}
 

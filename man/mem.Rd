@@ -29,6 +29,14 @@ the QR components of the design matrix if arguments \code{formula}, \code{data},
 
 \item{data}{The dataset to be used to compute marginal effects. DAME provides most meaningful results if the original dataset is used for computing marginal effects.}
 
+\item{formula}{The formula used in estimation (if not specified, it is extracted from the fitted model object).}
+
+\item{link}{The link function used in estimation (if not specified, it is extracted from the fitted model object).}
+
+\item{coefficients}{The named vector of coefficients produced during the estimation (if not specified, it is extracted from the fitted model object).}
+
+\item{variance}{The variance-covariance matrix to be used for computing standard errors (if not specified, it is extracted from the fitted model object).}
+
 \item{discrete}{A logical variable. If TRUE, the function will compute the effect of a discrete change in \code{x}. If FALSE, the function will compute the partial derivative of \code{x}.}
 
 \item{discrete_step}{The size of a discrete change in \code{x} used in computations (used only if \code{discrete=TRUE}).}
@@ -50,11 +58,4 @@ A list of the following:
 }
 \description{
 \code{mem} computes the marginal effects of variable \code{x} at the specified values of \code{at} variables and the mean values of all the other variables (including \code{x}).
-}
-\examples{
-##poisson regression with 2 variables and interaction between them
-#fit the regression first
-data <- data.frame(y = rpois(10000, 10), x2 = rpois(10000, 5), x1 = rpois(10000, 3))
-y <- glm(y ~ x1 + x2 + x1*x2, data = data, family = "poisson")
-mem(model = y, x = "x1", over = "x2")
 }

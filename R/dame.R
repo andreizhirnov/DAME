@@ -7,6 +7,10 @@
 #' the QR components of the design matrix if arguments \code{formula}, \code{data}, \code{link}, \code{coefficients}, and/or
 #' \code{variance} are not explicitly specified.
 #' @param data The dataset to be used to compute marginal effects. DAME provides most meaningful results if the original dataset is used for computing marginal effects.
+#' @param formula The formula used in estimation (if not specified, it is extracted from the fitted model object).
+#' @param link The link function used in estimation (if not specified, it is extracted from the fitted model object).
+#' @param coefficients The named vector of coefficients produced during the estimation (if not specified, it is extracted from the fitted model object).
+#' @param variance The variance-covariance matrix to be used for computing standard errors (if not specified, it is extracted from the fitted model object).
 #' @param discrete A logical variable. If TRUE, the function will compute the effect of a discrete change in \code{x}. If FALSE, the function will compute the partial derivative of \code{x}.
 #' @param discrete_step The size of a discrete change in \code{x} used in computations (used only if \code{discrete=TRUE}).
 #' @param at A named list of values of independent variables. These variables will be set to these value before computations. All other quantitative variables (except \code{x} and \code{over}) will be set to their means. All other factor variables will be set to their modes.
@@ -27,10 +31,10 @@
 #' \item\code{execute_time} Execution time
 #' }
 #' @examples
-#' ##poisson regression with 2 variables and interaction between them
+#' ##poisson regression with 2 variables and an interaction between them
 #' #fit the regression first
 #' data <- data.frame(y = rpois(10000, 10), x2 = rpois(10000, 5), x1 = rpois(10000, 3))
-#' y <- glm(y ~ x1 + x2 + x1*x2, data = data, family = "poisson")
+#' y <- glm(y ~ x1*x2, data = data, family = "poisson")
 #' #compute DAME
 #' dame(model = y, x = "x1", over = "x2")
 #' @export
@@ -43,11 +47,12 @@ dame <- function(x, over = NULL, model = NULL, data = NULL, formula = NULL, link
 
   # extract arguments from the call
   args <- as.list(match.call())
-  if (!("formula" %in% names(args))) args[["formula"]] <- quote(eval(args[["model"]])[["formula"]])
-  if (!("data" %in% names(args))) args[["data"]] <- quote(eval(args[["model"]])[["data"]])
-  if (!("link" %in% names(args))) args[["link"]] <- quote(eval(args[["model"]])[["family"]][["link"]])
-  if (!("coefficients" %in% names(args))) args[["coefficients"]] <- quote(stats::coef(eval(args[["model"]])))
-  if (!("variance" %in% names(args))) args[["variance"]] <- quote(stats::vcov(eval(args[["model"]])))
+  if (!("formula" %in% names(args))) args[["formula"]] <- eval(args[["model"]])[["formula"]]
+  if (!("data" %in% names(args))) args[["data"]] <- eval(args[["model"]])[["data"]]
+  if (!("link" %in% names(args))) args[["link"]] <- eval(args[["model"]])[["family"]][["link"]]
+ # if (!("link" %in% names(args))) args[["link"]] <- quote(eval(args[["model"]])[["family"]][["link"]])
+  if (!("coefficients" %in% names(args))) args[["coefficients"]] <- stats::coef(eval(args[["model"]]))
+  if (!("variance" %in% names(args))) args[["variance"]] <- stats::vcov(eval(args[["model"]]))
 
 # check the required arguments and coerce the specified arguments into a proper class
   checks <- list(
@@ -60,7 +65,7 @@ dame <- function(x, over = NULL, model = NULL, data = NULL, formula = NULL, link
   check.args(args=args, checks=checks)
 
   # check if x, over, at variables are included in the formula
-  updform <- formula
+  updform <- args[["formula"]]
   updform[[2L]] <- NULL
   allvars <- all.vars(updform)
   outside.formula <- setdiff(c(x,over,names(at)),allvars)
@@ -82,22 +87,22 @@ dame <- function(x, over = NULL, model = NULL, data = NULL, formula = NULL, link
     }
   }
 # preliminaries
-  make.dydm(link=link)
+  dyli <- make.dydm(link=link)
 # make a data frame specific to DAME
-  makeframes.dame(data=data,allvars=allvars,at=at,over=over,x=x)
+  mfli <- makeframes.dame(data=args[["data"]],allvars=allvars,at=args[["at"]],over=args[["over"]],x=args[["x"]])
 # computation
   if (mc) {
   to_insert <- simulated.me(discrete=discrete, discrete_step=discrete_step, iter=iter, coefficients=coefficients, variance=variance,
-                           data=data.compressed, x = x, formula=updform, ym=ym, mx=mx, dydm=dydm, wmat=wmat, pct=pct)
+                           data=mfli[["data.compressed"]], x = x, formula=updform, ym=dyli[["ym"]], mx=mx, dydm=dyli[["dydm"]], wmat=mfli[["wmat"]], pct=pct)
   } else {
-  to_insert <- analytical.me(discrete=discrete, discrete_step=discrete_step, coefficients=coefficients, variance=variance,
-                                 data=data.compressed, x = x, formula=updform, ym=ym, mx=mx, dydm=dydm, d2ydm2=d2ydm2, wmat=wmat, pct=pct)
+  to_insert <- analytical.me(discrete=discrete, discrete_step=discrete_step, coefficients=args[["coefficients"]], variance=args[["variance"]],
+                                 data=mfli[["data.compressed"]], x = x, formula=updform, ym=dyli[["ym"]], mx=mx, dydm=dyli[["dydm"]], d2ydm2=dyli[["d2ydm2"]], wmat=mfli[["wmat"]], pct=pct)
   }
  # merge in other variables
-  if (nrow(grid) == 0) {
+  if (nrow(mfli$grid) == 0) {
     effects <- as.data.frame(to_insert)
   } else {
-    effects <- data.frame(to_insert,grid)
+    effects <- data.frame(to_insert,mfli$grid)
   }
   rownames(effects) <- c()
   return(list("dame" = effects, "execute_time" = Sys.time() - start_time))

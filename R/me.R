@@ -7,6 +7,10 @@
 #' the QR components of the design matrix if arguments \code{formula}, \code{data}, \code{link}, \code{coefficients}, and/or
 #' \code{variance} are not explicitly specified.
 #' @param data The dataset to be used to compute marginal effects. DAME provides most meaningful results if the original dataset is used for computing marginal effects.
+#' @param formula The formula used in estimation (if not specified, it is extracted from the fitted model object).
+#' @param link The link function used in estimation (if not specified, it is extracted from the fitted model object).
+#' @param coefficients The named vector of coefficients produced during the estimation (if not specified, it is extracted from the fitted model object).
+#' @param variance The variance-covariance matrix to be used for computing standard errors (if not specified, it is extracted from the fitted model object).
 #' @param discrete A logical variable. If TRUE, the function will compute the effect of a discrete change in \code{x}. If FALSE, the function will compute the partial derivative of \code{x}.
 #' @param discrete_step The size of a discrete change in \code{x} used in computations (used only if \code{discrete=TRUE}).
 #' @param at A named list of values of independent variables. These variables will be set to these value before computations. All other quantitative variables (except \code{x} and \code{over}) will be set to their means. All other factor variables will be set to their modes.
@@ -72,19 +76,19 @@ me <- function(x, over = NULL, model = NULL, data = NULL, formula = NULL, link =
     }
   }
 # preliminaries
-  make.dydm(link=link)
+  dyli <- make.dydm(link=link)
 # make a data frame specific to ME
-  makeframes.me(data=data,allvars=allvars,at=at,over=over,x=x)
+  mfli <- makeframes.me(data=data,allvars=allvars,at=at,over=over,x=x)
 # computation
   if (mc) {
     to_insert <- simulated.me(discrete=discrete, discrete_step=discrete_step, iter=iter, coefficients=coefficients, variance=variance,
-                              data=data.compressed, x = x, formula=updform, ym=ym, mx=mx, dydm=dydm, wmat = NULL, pct=pct)
+                              data=mfli$data.compressed, x = x, formula=updform, ym=dyli$ym, mx=mx, dydm=dyli$dydm, wmat = NULL, pct=pct)
   } else {
     to_insert <- analytical.me(discrete=discrete, discrete_step=discrete_step, coefficients=coefficients, variance=variance,
-                               data=data.compressed, x = x, formula=updform, ym=ym, mx=mx, dydm=dydm, d2ydm2=d2ydm2, wmat = NULL, pct=pct)
+                               data=mfli$data.compressed, x = x, formula=updform, ym=dyli$ym, mx=mx, dydm=dyli$dydm, d2ydm2=dyli$d2ydm2, wmat = NULL, pct=pct)
   }
   ## merge in other variables
-  effects <- data.frame(to_insert,data.compressed)
+  effects <- data.frame(to_insert,mfli$data.compressed)
   rownames(effects) <- c()
   return(list("me" = effects, "execute_time" = Sys.time() - start_time))
 }
