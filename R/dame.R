@@ -92,7 +92,7 @@ dame <- function(x, over = NULL, model = NULL, data = NULL, formula = NULL, link
   mfli <- makeframes.dame(data=args[["data"]],allvars=allvars,at=args[["at"]],over=args[["over"]],x=args[["x"]])
 # computation
   if (mc) {
-  to_insert <- simulated.me(discrete=discrete, discrete_step=discrete_step, iter=iter, coefficients=coefficients, variance=variance,
+  to_insert <- simulated.me(discrete=discrete, discrete_step=discrete_step, iter=iter, coefficients=args[["coefficients"]], variance=args[["variance"]],
                            data=mfli[["data.compressed"]], x = x, formula=updform, ym=dyli[["ym"]], mx=mx, dydm=dyli[["dydm"]], wmat=mfli[["wmat"]], pct=pct)
   } else {
   to_insert <- analytical.me(discrete=discrete, discrete_step=discrete_step, coefficients=args[["coefficients"]], variance=args[["variance"]],

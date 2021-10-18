@@ -81,11 +81,11 @@ me <- function(x, over = NULL, model = NULL, data = NULL, formula = NULL, link =
   mfli <- makeframes.me(data=data,allvars=allvars,at=at,over=over,x=x)
 # computation
   if (mc) {
-    to_insert <- simulated.me(discrete=discrete, discrete_step=discrete_step, iter=iter, coefficients=coefficients, variance=variance,
-                              data=mfli$data.compressed, x = x, formula=updform, ym=dyli$ym, mx=mx, dydm=dyli$dydm, wmat = NULL, pct=pct)
+    to_insert <- simulated.me(discrete=discrete, discrete_step=discrete_step, iter=iter, coefficients=args[["coefficients"]], variance=args[["variance"]],
+                              data=mfli[["data.compressed"]], x = x, formula=updform, ym=dyli$ym, mx=mx, dydm=dyli$dydm, wmat = NULL, pct=pct)
   } else {
-    to_insert <- analytical.me(discrete=discrete, discrete_step=discrete_step, coefficients=coefficients, variance=variance,
-                               data=mfli$data.compressed, x = x, formula=updform, ym=dyli$ym, mx=mx, dydm=dyli$dydm, d2ydm2=dyli$d2ydm2, wmat = NULL, pct=pct)
+    to_insert <- analytical.me(discrete=discrete, discrete_step=discrete_step, coefficients=args[["coefficients"]], variance=args[["variance"]],
+                               data=mfli[["data.compressed"]], x = x, formula=updform, ym=dyli$ym, mx=mx, dydm=dyli$dydm, d2ydm2=dyli$d2ydm2, wmat = NULL, pct=pct)
   }
   ## merge in other variables
   effects <- data.frame(to_insert,mfli$data.compressed)

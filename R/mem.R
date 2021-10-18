@@ -73,11 +73,11 @@ mem <- function(x, model = NULL, data = NULL, formula = NULL, link = NULL,
   mfli <- makeframes.mem(data=data,allvars=allvars,at=at)
   ##  computation
   if (mc) {
-    effects <- simulated.me(discrete=discrete, discrete_step=discrete_step, iter=iter, coefficients=coefficients, variance=variance,
-                            data=mfli$data.compressed, x = x, formula=updform, ym=dyli$ym, mx=mx, dydm=dyli$dydm, wmat=NULL, pct=pct)
+    effects <- simulated.me(discrete=discrete, discrete_step=discrete_step, iter=iter, coefficients=args[["coefficients"]], variance=args[["variance"]],
+                            data=mfli[["data.compressed"]], x = x, formula=updform, ym=dyli$ym, mx=mx, dydm=dyli$dydm, wmat=NULL, pct=pct)
   } else {
-    effects <- analytical.me(discrete=discrete, discrete_step=discrete_step, coefficients=coefficients, variance=variance,
-                             data=mfli$data.compressed, x = x, formula=updform, ym=dyli$ym, mx=mx, dydm=dyli$dydm, d2ydm2=dyli$d2ydm2, wmat=NULL, pct=pct)
+    effects <- analytical.me(discrete=discrete, discrete_step=discrete_step, coefficients=args[["coefficients"]], variance=args[["variance"]],
+                             data=mfli[["data.compressed"]], x = x, formula=updform, ym=dyli$ym, mx=mx, dydm=dyli$dydm, d2ydm2=dyli$d2ydm2, wmat=NULL, pct=pct)
   }
   ## merge in other variables
   if (nrow(mfli$grid) > 0) effects <- cbind(effects,mfli$grid)
