@@ -4,29 +4,43 @@
 \alias{plot_me}
 \title{Vizualizing Marginal Effects}
 \usage{
-plot_me(x, over, model = NULL, data = NULL, link = NULL,
-  formula = NULL, coefficients = NULL, variance = NULL, at = NULL,
-  mc = FALSE, iter = 1000, heatmap_dim = c(100, 100), p = 0.05,
-  gradient = c("#f2e6e7", "#f70429"), breaks_hor = waiver(),
-  breaks_ver = waiver(), breaks_hb = waiver(), breaks_hl = waiver(),
+plot_me(
+  x,
+  over,
+  model = NULL,
+  data = NULL,
+  link = NULL,
+  formula = NULL,
+  coefficients = NULL,
+  variance = NULL,
+  at = NULL,
+  mc = FALSE,
+  iter = 1000,
+  heatmap_dim = c(100, 100),
+  p = 0.05,
+  gradient = c("#f2e6e7", "#f70429"),
+  breaks_hor = waiver(),
+  breaks_ver = waiver(),
+  breaks_hb = waiver(),
+  breaks_hl = waiver(),
   geom_hl = geom_histogram(aes(y = stat(count)/sum(stat(count)))),
   geom_hb = geom_histogram(aes(y = stat(count)/sum(stat(count)))),
-  theme_mp = theme_bw() + theme(panel.grid.minor = element_blank(),
-  panel.grid.major = element_blank(), panel.border = element_rect(colour =
-  "black"), axis.text.y = element_text(angle = 90), axis.title.x =
-  element_blank(), axis.title.y = element_blank(), plot.margin =
-  unit(c(0.5, 0.5, 0.01, 0.01), "lines"), aspect.ratio = 1, legend.position
-  = "right"), theme_hl = theme_bw() + theme(panel.border =
-  element_rect(colour = NA), panel.grid.minor = element_blank(),
-  panel.grid.major = element_blank(), axis.ticks.length = unit(0.1, "cm"),
-  plot.margin = unit(c(0.5, 0, 0, 0.5), "lines"), axis.title.y =
-  element_text(face = "bold"), axis.title.x = element_blank(), aspect.ratio
-  = 5), theme_hb = theme_bw() + theme(panel.border = element_rect(colour
-  = NA), panel.grid.minor = element_blank(), panel.grid.major =
-  element_blank(), axis.ticks.length = unit(0.1, "cm"), plot.margin =
-  unit(c(0, 0.5, 0, 0), "lines"), axis.text.y = element_text(angle = 90),
-  axis.title.x = element_text(face = "bold"), axis.title.y =
-  element_blank(), aspect.ratio = 1/5))
+  theme_mp = theme_bw() + theme(panel.grid.minor = element_blank(), panel.grid.major =
+    element_blank(), panel.border = element_rect(colour = "black"), axis.text.y =
+    element_text(angle = 90), axis.title.x = element_blank(), axis.title.y =
+    element_blank(), plot.margin = unit(c(0.5, 0.5, 0.01, 0.01), "lines"), aspect.ratio =
+    1, legend.position = "right"),
+  theme_hl = theme_bw() + theme(panel.border = element_rect(colour = NA),
+    panel.grid.minor = element_blank(), panel.grid.major = element_blank(),
+    axis.ticks.length = unit(0.1, "cm"), plot.margin = unit(c(0.5, 0, 0, 0.5), "lines"),
+    axis.title.y = element_text(face = "bold"), axis.title.x = element_blank(),
+    aspect.ratio = 5),
+  theme_hb = theme_bw() + theme(panel.border = element_rect(colour = NA),
+    panel.grid.minor = element_blank(), panel.grid.major = element_blank(),
+    axis.ticks.length = unit(0.1, "cm"), plot.margin = unit(c(0, 0.5, 0, 0), "lines"),
+    axis.text.y = element_text(angle = 90), axis.title.x = element_text(face = "bold"),
+    axis.title.y = element_blank(), aspect.ratio = 1/5)
+)
 }
 \arguments{
 \item{x}{The independent variable whose effect is being assessed. This variable is mapped along the vertical axis.}

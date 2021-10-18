@@ -4,10 +4,22 @@
 \alias{dame}
 \title{DAME function}
 \usage{
-dame(x, over = NULL, model = NULL, data = NULL, formula = NULL,
-  link = NULL, coefficients = NULL, variance = NULL,
-  discrete = FALSE, discrete_step = 1, at = NULL, mc = FALSE,
-  pct = c(2.5, 97.5), iter = 1000)
+dame(
+  x,
+  over = NULL,
+  model = NULL,
+  data = NULL,
+  formula = NULL,
+  link = NULL,
+  coefficients = NULL,
+  variance = NULL,
+  discrete = FALSE,
+  discrete_step = 1,
+  at = NULL,
+  mc = FALSE,
+  pct = c(2.5, 97.5),
+  iter = 1000
+)
 }
 \arguments{
 \item{x}{A character string representing the name of a variable. DAME will be computed for this variable.}

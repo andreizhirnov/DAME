@@ -5,7 +5,7 @@
 \alias{DAME-package}
 \title{DAME-package:  Marginal Effects in Nonlinear Interactive Models.}
 \description{
-The DAME package provides tools that implement and visualize procedures described in Moral, Sedashov
+The DAME package provides tools that implement and visualize the procedures described in Moral, Sedashov
 and Zhirnov (2017). It can also be used for computing other well-known quantities of interest such
 as predicted probabilities.
 }
@@ -15,12 +15,10 @@ Interpreting the Effects of Constitutive Variables in Nonlinear Models with Inte
 }
 \author{
 {
-\strong{Maintainer}: Evgeny Sedashov \email{esedash1@binghamton.edu}
-
-Authors:
+\strong{Maintainer}: Evgeny Sedashov \email{esedashov@hse.ru}
 \itemize{
-\item Mert Moral \email{mmoral17@binghamton.edu}
-\item Andrei Zhirnov \email{azhirno1@binghamton.edu}
+\item Mert Moral \email{mmoral@sabanciuniv.edu}
+\item Andrei Zhirnov \email{A.Zhirnov@exeter.ac.uk}
 }
 }
 }

@@ -4,10 +4,21 @@
 \alias{ame}
 \title{AME function}
 \usage{
-ame(x, model = NULL, data = NULL, formula = NULL, link = NULL,
-  coefficients = NULL, variance = NULL, discrete = FALSE,
-  discrete_step = 1, at = NULL, mc = FALSE, pct = c(2.5, 97.5),
-  iter = 1000)
+ame(
+  x,
+  model = NULL,
+  data = NULL,
+  formula = NULL,
+  link = NULL,
+  coefficients = NULL,
+  variance = NULL,
+  discrete = FALSE,
+  discrete_step = 1,
+  at = NULL,
+  mc = FALSE,
+  pct = c(2.5, 97.5),
+  iter = 1000
+)
 }
 \arguments{
 \item{x}{A character string representing the name of a variable. ME will be computed for this variable.}
@@ -39,11 +50,4 @@ A list of the following:
 }
 \description{
 \code{ame} computes the average marginal effects of variable \code{x} at the specified values of \code{at} variables.
-}
-\examples{
-##poisson regression with 2 variables and interaction between them
-#fit the regression first
-data <- data.frame(y = rpois(10000, 10), x2 = rpois(10000, 5), x1 = rpois(10000, 3))
-y <- glm(y ~ x1 + x2 + x1*x2, data = data, family = "poisson")
-ame(model = y, x = "x1", over = "x2")
 }

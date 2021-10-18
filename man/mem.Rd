@@ -4,10 +4,21 @@
 \alias{mem}
 \title{MEM function}
 \usage{
-mem(x, model = NULL, data = NULL, formula = NULL, link = NULL,
-  coefficients = NULL, variance = NULL, discrete = FALSE,
-  discrete_step = 1, at = NULL, mc = FALSE, pct = c(2.5, 97.5),
-  iter = 1000)
+mem(
+  x,
+  model = NULL,
+  data = NULL,
+  formula = NULL,
+  link = NULL,
+  coefficients = NULL,
+  variance = NULL,
+  discrete = FALSE,
+  discrete_step = 1,
+  at = NULL,
+  mc = FALSE,
+  pct = c(2.5, 97.5),
+  iter = 1000
+)
 }
 \arguments{
 \item{x}{A character string representing the name of a variable. ME will be computed for this variable.}

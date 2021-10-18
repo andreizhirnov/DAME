@@ -47,9 +47,9 @@ make.dydm <- function (link)
            d2ydm2 <- function(mu) 2*mu^(-3)
          }
   )
-  assign("ym", ym, env=parent.frame())
-  assign("dydm", dydm, env=parent.frame())
-  assign("d2ydm2", d2ydm2, env=parent.frame())
+  assign("ym", ym, envir=parent.frame())
+  assign("dydm", dydm, envir=parent.frame())
+  assign("d2ydm2", d2ydm2, envir=parent.frame())
 }
 
 clean.calls <- function(x) {
@@ -88,9 +88,9 @@ make.dmdx <- function(formula, bnames, xvarname) {
     parts <- do.call("cbind",lapply(dmdx.parts, function(x) eval(x, envir = upddata)))
     coefficients %*% t(parts)
   }
-  assign("dmdx",dmdx, env=parent.frame())
-  assign("dmdb", dmdb , env=parent.frame())
-  assign("d2mdxdb", d2mdxdb, env=parent.frame())
+  assign("dmdx",dmdx, envir=parent.frame())
+  assign("dmdb", dmdb , envir=parent.frame())
+  assign("d2mdxdb", d2mdxdb, envir=parent.frame())
 }
 
 find.mode <- function(x) {
@@ -198,9 +198,9 @@ check.args <- function(args,checks) {
                             error = function(e) return(ifelse(checks[["types"]][[i]] == "character", toString(args[[i]]), NULL)))
       if (is.null(candidate)) stop(paste0("Error: Argument '",i,"' is not ",checks[["types"]][[i]]), call. = FALSE)
       if (is.null(checks[["lengths"]][[i]])) {
-        assign(i, candidate, env=parent.frame())
+        assign(i, candidate, envir=parent.frame())
       } else if (length(candidate) == checks[["lengths"]][[i]]) {
-        assign(i,candidate, env=parent.frame())
+        assign(i,candidate, envir=parent.frame())
       } else {
         stop(paste0("Error: Argument '",i,"' must be of length ",checks[["lengths"]][[i]]), call. = FALSE)
       }
