@@ -53,7 +53,7 @@ makeframes.dame <- function(data, allvars, at=NULL, bin_id, weight) {
 
   grid_diag <- diag(nrow(grid))
   colnames(grid_diag) <- paste0("X.",seq_len(nrow(grid)))
-  combo <- merge(counts, cbind(grid$grid_id,grid_diag), by="grid_id")
+  combo <- merge(counts, cbind(grid_id=grid$grid_id,grid_diag), by="grid_id")
   combo <- combo[order(combo$row_id),]
   grid_prep <- as.matrix(combo[["X_num"]] * combo[,paste0("X.",seq_len(nrow(grid)))])
   wmat <- grid_prep %*% diag(1/colSums(grid_prep))
