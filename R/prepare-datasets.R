@@ -1,11 +1,12 @@
 #' @importFrom stats aggregate na.omit complete.cases quantile median
 
-makeframes.dame <- function(data, allvars, at=NULL, bin_id) {
+makeframes.dame <- function(data, allvars, at=NULL, bin_id, weight) {
   at_dt <- expand.grid(as.list(at))
   usable <- complete.cases(data[setdiff(allvars,names(at))])
   varying <- subset(data, usable, select=setdiff(allvars,names(at)))
   colnames(varying) <- paste0("va.",colnames(varying))
   varying[["bin_id"]] <- bin_id[usable]
+  varying[["weight"]] <- weight[usable]
   uni_row <- which(!duplicated(varying))
   uni_bin <- sort(unique(varying[["bin_id"]]))
 
@@ -15,30 +16,33 @@ makeframes.dame <- function(data, allvars, at=NULL, bin_id) {
     data.compressed <- varying[uni_row,]
     data.compressed[["row_id"]] <- seq_along(uni_row)
     temp <- merge(varying, data.compressed)
-    counts <- aggregate(list("X_num" = seq_len(nrow(temp))), by = temp[c("row_id","bin_id")], FUN = length)
+    counts <- aggregate(list("X_num" = temp$weight), by = temp[c("row_id","bin_id")], FUN = sum)
     wmat <- as.matrix(counts[["X_num"]]/sum(counts[["X_num"]]))
     data.compressed[["row_id"]] <- data.compressed[["bin_id"]] <- data.compressed[["at_id"]] <- NULL
     colnames(data.compressed) <- substring(colnames(data.compressed),4)
     return(list(data.compressed=data.compressed, grid=grid, wmat=wmat))
   }
 # everything else
-  grid <- data.frame(bin_id=uni_bin)
-  grid$grid_id <- seq_len(nrow(grid))
+  grid <- data.frame(bin_id=uni_bin, grid_id=seq_along(uni_bin))
+##  grid$grid_id <- seq_len(nrow(grid))
   data.compressed <- varying[uni_row,]
   data.compressed[["row_id"]] <- seq_len(nrow(data.compressed))
   temp <- merge(varying, data.compressed)
-  counts <- aggregate(list("X_num" = seq_len(nrow(temp))), by = temp[c("row_id","bin_id")], FUN = length)
+  counts <- aggregate(list("X_num" = temp$weight), by = temp[c("row_id","bin_id")], FUN = sum)
   if (ncol(at_dt)==0) {
-    counts <- merge(counts, grid[,c("bin_id","grid_id"),drop=FALSE], by=c("bin_id"))
+    counts <- counts[order(counts$row_id),]
+    counts$grid_id <- match(counts$bin_id, uni_bin)
   } else {
     colnames(at_dt) <- paste0("at.", colnames(at_dt))
     at_dt$at_id <- seq_len(nrow(at_dt))
     data.compressed <- merge(data.compressed, at_dt,by=NULL)
     data.compressed <- data.compressed[order(data.compressed$row_id, data.compressed$at_id),]
     grid <- merge(grid, at_dt, by=NULL)
-    grid$grid_id <- seq_len(nrow(grid))
+    grid$grid_id <- paste0(grid_id,":",at_id)
     counts <- merge(counts, at_dt[,"at_id",drop=FALSE], by=NULL)
-    counts <- merge(counts, grid[,c("bin_id","at_id","grid_id"),drop=FALSE], by=c("bin_id","at_id"))
+    counts <- counts[order(counts$row_id, counts$at_id),]
+    counts$grid_id <- paste0(counts$grid_id,":",counts$at_id)
+ ##   counts <- merge(counts, grid[,c("bin_id","at_id","grid_id"),drop=FALSE], by=c("bin_id","at_id"))
     data.compressed$at_id <- grid$at_id  <- NULL
   }
   # wmat <- matrix(nrow=nrow(counts), ncol=nrow(grid))
@@ -49,7 +53,7 @@ makeframes.dame <- function(data, allvars, at=NULL, bin_id) {
 
   grid_diag <- diag(nrow(grid))
   colnames(grid_diag) <- paste0("X.",seq_len(nrow(grid)))
-  combo <- merge(counts, cbind(grid,grid_diag), by="grid_id")
+  combo <- merge(counts, cbind(grid$grid_id,grid_diag), by="grid_id")
   combo <- combo[order(combo$row_id),]
   grid_prep <- as.matrix(combo[["X_num"]] * combo[,paste0("X.",seq_len(nrow(grid)))])
   wmat <- grid_prep %*% diag(1/colSums(grid_prep))
