@@ -13,6 +13,9 @@ dame(
   link = NULL,
   coefficients = NULL,
   variance = NULL,
+  nbins = 10,
+  bin_id = NULL,
+  use_distinct_values = FALSE,
   discrete = FALSE,
   discrete_step = 1,
   at = NULL,
@@ -39,6 +42,13 @@ the QR components of the design matrix if arguments \code{formula}, \code{data},
 \item{coefficients}{The named vector of coefficients produced during the estimation (if not specified, it is extracted from the fitted model object).}
 
 \item{variance}{The variance-covariance matrix to be used for computing standard errors (if not specified, it is extracted from the fitted model object).}
+
+\item{nbins}{the number of bins to be used for aggregating marginal effects; the default is 10 bins of equal size; ignored if \code{bin_id} is specified or
+\code{use_distinct_values} is TRUE.}
+
+\item{bin_id}{a numeric vector identifying the bins used for aggregating marginal effects.}
+
+\item{use_distinct_values}{logical; if TRUE, the function uses all unique values of the \code{over} variable; ignored if \code{bin_id} is specified.}
 
 \item{discrete}{A logical variable. If TRUE, the function will compute the effect of a discrete change in \code{x}. If FALSE, the function will compute the partial derivative of \code{x}.}
 

@@ -15,7 +15,7 @@
 #' @param at A named list of values of independent variables. These variables will be set to these value before computations. All other quantitative variables (except \code{x} and \code{over}) will be set to their means. All other factor variables will be set to their modes.
 #' @param mc A logical variable. If TRUE, the function will compute standard errors and sampling quantiles using Monte-Carlo simulations. If FALSE, the function will use the delta method.
 #' @param pct A numeric vector with the sampling quantiles to be output with the DAME estimates. Default = \code{c(2.5,97.5)}.
-#' @param iter Number of interations used in Monte-Carlo simulations. Default = 1,000.
+#' @param iter Number of iterations used in Monte-Carlo simulations. Default = 1,000.
 #' @return A list of the following:
 #' \itemize{
 #' \item\code{me} A data frame with ME estimates, standard errors, quantiles of the sampling distribution, and the values of the independent variables.
@@ -27,15 +27,14 @@ ame <- function(x, model = NULL, data = NULL, formula = NULL, link = NULL,
                coefficients = NULL, variance = NULL,
                discrete = FALSE, discrete_step = 1, at = NULL, mc = FALSE,
                pct = c(2.5, 97.5), iter = 1000) {
-  start_time <- Sys.time()
 
-  # extract arguments from the call
+# extract arguments from the call
   args <- as.list(match.call())
-  if (!("formula" %in% names(args))) args[["formula"]] <- quote(eval(args[["model"]])[["formula"]])
-  if (!("data" %in% names(args))) args[["data"]] <- quote(eval(args[["model"]])[["data"]])
-  if (!("link" %in% names(args))) args[["link"]] <- quote(eval(args[["model"]])[["family"]][["link"]])
-  if (!("coefficients" %in% names(args))) args[["coefficients"]] <- quote(stats::coef(eval(args[["model"]])))
-  if (!("variance" %in% names(args))) args[["variance"]] <- quote(stats::vcov(eval(args[["model"]])))
+  if (!("formula" %in% names(args))) args[["formula"]] <- eval(args[["model"]])[["formula"]]
+  if (!("data" %in% names(args))) args[["data"]] <- eval(args[["model"]])[["data"]]
+  if (!("link" %in% names(args))) args[["link"]] <- eval(args[["model"]])[["family"]][["link"]]
+  if (!("coefficients" %in% names(args))) args[["coefficients"]] <- stats::coef(eval(args[["model"]]))
+  if (!("variance" %in% names(args))) args[["variance"]] <- stats::vcov(eval(args[["model"]]))
   # check the required arguments and coerce the specified arguments into a proper class
   checks <- list(
     required=c("x","formula","data","link","coefficients","variance"),
@@ -70,17 +69,20 @@ ame <- function(x, model = NULL, data = NULL, formula = NULL, link = NULL,
   }
   dyli <- make.dydm(link=link)
 ## make a data frame specific to AME
-  mfli <- makeframes.ame(data=data,allvars=allvars,at=at)
+  mfli <- makeframes.dame(data=data,allvars=allvars,at=at,bin_id=rep(1,nrow(data)))
 ##  computation
   if (mc) {
-    effects <- simulated.me(discrete=discrete, discrete_step=discrete_step, iter=iter,coefficients=args[["coefficients"]], variance=args[["variance"]],
+    effects <- simulated.me(discrete=discrete, discrete_step=discrete_step, iter=iter, coefficients=args[["coefficients"]], variance=args[["variance"]],
                               data=mfli[["data.compressed"]], x = x, formula=updform, ym=dyli$ym, mx=mx, dydm=dyli$dydm, wmat=mfli$wmat, pct=pct)
   } else {
-    effects <- analytical.me(discrete=discrete, discrete_step=discrete_step,coefficients=args[["coefficients"]], variance=args[["variance"]],
+    effects <- analytical.me(discrete=discrete, discrete_step=discrete_step, coefficients=args[["coefficients"]], variance=args[["variance"]],
                                data=mfli[["data.compressed"]], x = x, formula=updform, ym=dyli$ym, mx=mx, dydm=dyli$dydm, d2ydm2=dyli$d2ydm2, wmat=mfli$wmat, pct=pct)
   }
   ## merge in other variables
-  if (nrow(mfli$grid) > 0) effects <- cbind(effects,mfli$grid)
+  if (length(at) > 0) {
+    mfli[["grid"]][["bin_id"]] <- NULL
+    effects <- cbind(effects,mfli$grid)
+    }
   rownames(effects) <- c()
-  list("ame" = effects, "execute_time" = Sys.time() - start_time)
+  return(effects)
 }

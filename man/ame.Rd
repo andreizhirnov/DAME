@@ -47,7 +47,7 @@ the QR components of the design matrix if arguments \code{formula}, \code{data},
 
 \item{pct}{A numeric vector with the sampling quantiles to be output with the DAME estimates. Default = \code{c(2.5,97.5)}.}
 
-\item{iter}{Number of interations used in Monte-Carlo simulations. Default = 1,000.}
+\item{iter}{Number of iterations used in Monte-Carlo simulations. Default = 1,000.}
 }
 \value{
 A list of the following:

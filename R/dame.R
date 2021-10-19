@@ -11,6 +11,10 @@
 #' @param link The link function used in estimation (if not specified, it is extracted from the fitted model object).
 #' @param coefficients The named vector of coefficients produced during the estimation (if not specified, it is extracted from the fitted model object).
 #' @param variance The variance-covariance matrix to be used for computing standard errors (if not specified, it is extracted from the fitted model object).
+#' @param nbins the number of bins to be used for aggregating marginal effects; the default is 10 bins of equal size; ignored if \code{bin_id} is specified or
+#' \code{use_distinct_values} is TRUE.
+#' @param bin_id a numeric vector identifying the bins used for aggregating marginal effects.
+#' @param use_distinct_values logical; if TRUE, the function uses all unique values of the \code{over} variable; ignored if \code{bin_id} is specified.
 #' @param discrete A logical variable. If TRUE, the function will compute the effect of a discrete change in \code{x}. If FALSE, the function will compute the partial derivative of \code{x}.
 #' @param discrete_step The size of a discrete change in \code{x} used in computations (used only if \code{discrete=TRUE}).
 #' @param at A named list of values of independent variables. These variables will be set to these value before computations. All other quantitative variables (except \code{x} and \code{over}) will be set to their means. All other factor variables will be set to their modes.
@@ -39,18 +43,17 @@
 #' dame(model = y, x = "x1", over = "x2")
 #' @export
 
-dame <- function(x, over = NULL, model = NULL, data = NULL, formula = NULL, link = NULL,
+dame <- function(x, over = NULL, model = NULL,
+                 data = NULL, formula = NULL, link = NULL,
                  coefficients = NULL, variance = NULL,
+                 nbins = 10, bin_id = NULL, use_distinct_values = FALSE,
                  discrete = FALSE, discrete_step = 1, at = NULL, mc = FALSE,
                  pct = c(2.5, 97.5), iter = 1000) {
-  start_time <- Sys.time()
-
   # extract arguments from the call
   args <- as.list(match.call())
   if (!("formula" %in% names(args))) args[["formula"]] <- eval(args[["model"]])[["formula"]]
   if (!("data" %in% names(args))) args[["data"]] <- eval(args[["model"]])[["data"]]
   if (!("link" %in% names(args))) args[["link"]] <- eval(args[["model"]])[["family"]][["link"]]
- # if (!("link" %in% names(args))) args[["link"]] <- quote(eval(args[["model"]])[["family"]][["link"]])
   if (!("coefficients" %in% names(args))) args[["coefficients"]] <- stats::coef(eval(args[["model"]]))
   if (!("variance" %in% names(args))) args[["variance"]] <- stats::vcov(eval(args[["model"]]))
 
@@ -89,21 +92,24 @@ dame <- function(x, over = NULL, model = NULL, data = NULL, formula = NULL, link
 # preliminaries
   dyli <- make.dydm(link=link)
 # make a data frame specific to DAME
-  mfli <- makeframes.dame(data=args[["data"]],allvars=allvars,at=args[["at"]],over=args[["over"]],x=args[["x"]])
+  if (!is.null(args[["bin_id"]])) {
+    bin_id <- eval(args[["bin_id"]])
+  } else if (use_distinct_values) {
+    bin_id <- args[["data"]][[args[["over"]]]]
+  } else {
+    bin_id <- make.bins(args[["data"]][[args[["over"]]]], nbins)
+  }
+  mfli <- makeframes.dame(data=args[["data"]],allvars=allvars,at=at,bin_id=bin_id)
 # computation
   if (mc) {
-  to_insert <- simulated.me(discrete=discrete, discrete_step=discrete_step, iter=iter, coefficients=args[["coefficients"]], variance=args[["variance"]],
+  effects <- simulated.me(discrete=discrete, discrete_step=discrete_step, iter=iter, coefficients=args[["coefficients"]], variance=args[["variance"]],
                            data=mfli[["data.compressed"]], x = x, formula=updform, ym=dyli[["ym"]], mx=mx, dydm=dyli[["dydm"]], wmat=mfli[["wmat"]], pct=pct)
   } else {
-  to_insert <- analytical.me(discrete=discrete, discrete_step=discrete_step, coefficients=args[["coefficients"]], variance=args[["variance"]],
+  effects <- analytical.me(discrete=discrete, discrete_step=discrete_step, coefficients=args[["coefficients"]], variance=args[["variance"]],
                                  data=mfli[["data.compressed"]], x = x, formula=updform, ym=dyli[["ym"]], mx=mx, dydm=dyli[["dydm"]], d2ydm2=dyli[["d2ydm2"]], wmat=mfli[["wmat"]], pct=pct)
   }
- # merge in other variables
-  if (nrow(mfli$grid) == 0) {
-    effects <- as.data.frame(to_insert)
-  } else {
-    effects <- data.frame(to_insert,mfli$grid)
-  }
+ # merge with other variables
+  if (nrow(mfli$grid) > 0) effects <- cbind(effects,mfli$grid)
   rownames(effects) <- c()
-  return(list("dame" = effects, "execute_time" = Sys.time() - start_time))
+  return(effects)
 }

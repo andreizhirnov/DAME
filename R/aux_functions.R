@@ -95,6 +95,13 @@ find.mode <- function(x) {
   ux[which.max(tabulate(match(x, ux)))]
 }
 
+make.bins <- function(x, nbins) {
+  qrs <- sort(unique(quantile(x, seq(0, 1, by = 1/nbins))))
+  cuts <- as.numeric(cut(x, qrs, include.lowest = TRUE))
+  mp <- aggregate(x ~ cuts, FUN=median)
+  mp[match(cuts,mp$cuts) ,"x"]
+}
+
 simulated.me <- function(discrete, discrete_step, iter, coefficients, variance, data, x, formula, ym, mx, dydm, wmat = NULL, pct) {
   mf <- stats::model.frame(formula = formula, data = data)
   mmat <- stats::model.matrix(object = formula, data = mf)

@@ -88,11 +88,11 @@ plot_me <- function(x, over, model = NULL, data = NULL,
                                                 aspect.ratio = 1/5)) {
   # extract arguments from the call
   args <- as.list(match.call())
-  if (!("formula" %in% names(args))) args[["formula"]] <- quote(eval(args[["model"]])[["formula"]])
-  if (!("data" %in% names(args))) args[["data"]] <- quote(eval(args[["model"]])[["data"]])
-  if (!("link" %in% names(args))) args[["link"]] <- quote(eval(args[["model"]])[["family"]][["link"]])
-  if (!("coefficients" %in% names(args))) args[["coefficients"]] <- quote(stats::coef(eval(args[["model"]])))
-  if (!("variance" %in% names(args))) args[["variance"]] <- quote(stats::vcov(eval(args[["model"]])))
+  if (!("formula" %in% names(args))) args[["formula"]] <- eval(args[["model"]])[["formula"]]
+  if (!("data" %in% names(args))) args[["data"]] <- eval(args[["model"]])[["data"]]
+  if (!("link" %in% names(args))) args[["link"]] <- eval(args[["model"]])[["family"]][["link"]]
+  if (!("coefficients" %in% names(args))) args[["coefficients"]] <- stats::coef(eval(args[["model"]]))
+  if (!("variance" %in% names(args))) args[["variance"]] <- stats::vcov(eval(args[["model"]]))
 
   # check the required arguments and coerce the specified arguments into a proper class
   checks <- list(
