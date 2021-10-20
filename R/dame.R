@@ -20,7 +20,8 @@
 #' @param at A named list of values of independent variables. These variables will be set to these value before computations. All other quantitative variables (except \code{x} and \code{over}) will be set to their means. All other factor variables will be set to their modes.
 #' @param mc A logical variable. If TRUE, the function will compute standard errors and sampling quantiles using Monte-Carlo simulations. If FALSE, the function will use the delta method.
 #' @param pct A numeric vector with the sampling quantiles to be output with the DAME estimates. Default = \code{c(2.5,97.5)}.
-#' @param iter Number of interations used in Monte-Carlo simulations. Default = 1,000.
+#' @param iter the number of interations used in Monte-Carlo simulations. Default = 1,000.
+#' @param weights an optional vector of sampling weights.
 #' @author Function \code{dame} comes as a complimentary open-source implementation of procedures described in Moral, Sedashov, and Zhirnov (2017).
 #' Standard errors are computed using either delta method (Greene 2012) for more details) or Monte-Carlo simulations (King, Tomz, and Wittenberg 2000).
 #' @references
@@ -29,11 +30,8 @@
 #' King, Garry, Michael Tomz, and Jason Wittenberg. 2000. ``Making the Most of Statistical Analyses: Improving Interpretation and Presentation.'' \emph{American Journal of Political Science} 44(2): 341-355.
 
 #' Moral, Mert, Evgeny Sedashov, and Andrei Zhirnov. (2017) ``Taking Distributions Seriously Interpreting the Effects of Constitutive Variables in Nonlinear Models with Interactions.'' Working paper.
-#' @return A list of the following:
-#' \itemize{
-#' \item\code{dame} A data frame with the DAME estimates, standard errors, quantiles of the sampling distribution, and the values of the independent variables used for computing DAME.
-#' \item\code{execute_time} Execution time
-#' }
+#' @return \code{dame} returns a data frame with the estimates of the distribution-weighted average marginal effects, standard errors, confidence intervals, the corresponding bin IDs (by default, the median value 
+#' of the condiotionning variable within the bin), and the targeted combinations of \code{at} values if specified.
 #' @examples
 #' ##poisson regression with 2 variables and an interaction between them
 #' #fit the regression first
@@ -48,7 +46,7 @@ dame <- function(x, over = NULL, model = NULL,
                  coefficients = NULL, variance = NULL,
                  nbins = 10, bin_id = NULL, use_distinct_values = FALSE,
                  discrete = FALSE, discrete_step = 1, at = NULL, mc = FALSE,
-                 pct = c(2.5, 97.5), iter = 1000) {
+                 pct = c(2.5, 97.5), iter = 1000, weights = NULL) {
   # extract arguments from the call
   args <- as.list(match.call())
   if (!("formula" %in% names(args))) args[["formula"]] <- eval(args[["model"]])[["formula"]]
@@ -56,7 +54,7 @@ dame <- function(x, over = NULL, model = NULL,
   if (!("link" %in% names(args))) args[["link"]] <- eval(args[["model"]])[["family"]][["link"]]
   if (!("coefficients" %in% names(args))) args[["coefficients"]] <- stats::coef(eval(args[["model"]]))
   if (!("variance" %in% names(args))) args[["variance"]] <- stats::vcov(eval(args[["model"]]))
-
+  if (is.null(weights)) weights <- rep(1, nrow(data))
 # check the required arguments and coerce the specified arguments into a proper class
   checks <- list(
     required=c("x","formula","data","link","coefficients","variance"),
