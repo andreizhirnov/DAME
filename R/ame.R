@@ -16,17 +16,14 @@
 #' @param mc A logical variable. If TRUE, the function will compute standard errors and sampling quantiles using Monte-Carlo simulations. If FALSE, the function will use the delta method.
 #' @param pct A numeric vector with the sampling quantiles to be output with the DAME estimates. Default = \code{c(2.5,97.5)}.
 #' @param iter Number of iterations used in Monte-Carlo simulations. Default = 1,000.
-#' @return A list of the following:
-#' \itemize{
-#' \item\code{me} A data frame with ME estimates, standard errors, quantiles of the sampling distribution, and the values of the independent variables.
-#' \item\code{execute_time} Execution time
-#' }
+#' @param weights an optional vector of sampling weights.
+#' @return \code{ame} returns a data frame with the estimates of the average marginal effects, standard errors, confidence intervals, and the used values of the independent variables.
 #' @export
 
 ame <- function(x, model = NULL, data = NULL, formula = NULL, link = NULL,
                coefficients = NULL, variance = NULL,
                discrete = FALSE, discrete_step = 1, at = NULL, mc = FALSE,
-               pct = c(2.5, 97.5), iter = 1000) {
+               pct = c(2.5, 97.5), iter = 1000, weights = NULL) {
 
 # extract arguments from the call
   args <- as.list(match.call())
@@ -35,6 +32,7 @@ ame <- function(x, model = NULL, data = NULL, formula = NULL, link = NULL,
   if (!("link" %in% names(args))) args[["link"]] <- eval(args[["model"]])[["family"]][["link"]]
   if (!("coefficients" %in% names(args))) args[["coefficients"]] <- stats::coef(eval(args[["model"]]))
   if (!("variance" %in% names(args))) args[["variance"]] <- stats::vcov(eval(args[["model"]]))
+  if (is.null(weights)) weights <- rep(1, nrow(data))
   # check the required arguments and coerce the specified arguments into a proper class
   checks <- list(
     required=c("x","formula","data","link","coefficients","variance"),
