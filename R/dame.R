@@ -97,7 +97,7 @@ dame <- function(x, over = NULL, model = NULL,
   } else {
     bin_id <- make.bins(args[["data"]][[args[["over"]]]], nbins)
   }
-  mfli <- makeframes.dame(data=args[["data"]],allvars=allvars,at=at,bin_id=bin_id)
+  mfli <- makeframes.dame(data=args[["data"]],allvars=allvars,at=at,bin_id=bin_id, weights=weights)
 # computation
   if (mc) {
   effects <- simulated.me(discrete=discrete, discrete_step=discrete_step, iter=iter, coefficients=args[["coefficients"]], variance=args[["variance"]],
