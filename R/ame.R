@@ -67,7 +67,7 @@ ame <- function(x, model = NULL, data = NULL, formula = NULL, link = NULL,
   }
   dyli <- make.dydm(link=link)
 ## make a data frame specific to AME
-  mfli <- makeframes.dame(data=data,allvars=allvars,at=at,bin_id=rep(1,nrow(data)))
+  mfli <- makeframes.dame(data=data,allvars=allvars,at=at,bin_id=rep(1,nrow(data)), weights=weights)
 ##  computation
   if (mc) {
     effects <- simulated.me(discrete=discrete, discrete_step=discrete_step, iter=iter, coefficients=args[["coefficients"]], variance=args[["variance"]],
