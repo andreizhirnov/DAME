@@ -1,12 +1,12 @@
 #' @importFrom stats aggregate na.omit complete.cases quantile median
 
-makeframes.dame <- function(data, allvars, at=NULL, bin_id, weight) {
+makeframes.dame <- function(data, allvars, at=NULL, bin_id, weights) {
   at_dt <- expand.grid(as.list(at))
   usable <- complete.cases(data[setdiff(allvars,names(at))])
   varying <- subset(data, usable, select=setdiff(allvars,names(at)))
   colnames(varying) <- paste0("va.",colnames(varying))
   varying[["bin_id"]] <- bin_id[usable]
-  varying[["weight"]] <- weight[usable]
+  varying[["weight"]] <- weights[usable]
   uni_row <- which(!duplicated(varying))
   uni_bin <- sort(unique(varying[["bin_id"]]))
 
