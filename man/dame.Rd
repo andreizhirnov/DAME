@@ -21,7 +21,8 @@ dame(
   at = NULL,
   mc = FALSE,
   pct = c(2.5, 97.5),
-  iter = 1000
+  iter = 1000,
+  weights = NULL
 )
 }
 \arguments{
@@ -54,20 +55,19 @@ the QR components of the design matrix if arguments \code{formula}, \code{data},
 
 \item{discrete_step}{The size of a discrete change in \code{x} used in computations (used only if \code{discrete=TRUE}).}
 
-\item{at}{A named list of values of independent variables. These variables will be set to these value before computations. All other quantitative variables (except \code{x} and \code{over}) will be set to their means. All other factor variables will be set to their modes.}
+\item{at}{A named list of values of independent variables. These variables will be set to these value before computations.}
 
 \item{mc}{A logical variable. If TRUE, the function will compute standard errors and sampling quantiles using Monte-Carlo simulations. If FALSE, the function will use the delta method.}
 
 \item{pct}{A numeric vector with the sampling quantiles to be output with the DAME estimates. Default = \code{c(2.5,97.5)}.}
 
-\item{iter}{Number of interations used in Monte-Carlo simulations. Default = 1,000.}
+\item{iter}{the number of interations used in Monte-Carlo simulations. Default = 1,000.}
+
+\item{weights}{an optional vector of sampling weights.}
 }
 \value{
-A list of the following:
-\itemize{
-\item\code{dame} A data frame with the DAME estimates, standard errors, quantiles of the sampling distribution, and the values of the independent variables used for computing DAME.
-\item\code{execute_time} Execution time
-}
+\code{dame} returns a data frame with the estimates of the distribution-weighted average marginal effects, standard errors, confidence intervals, the corresponding bin IDs (by default, the median value
+of the condiotionning variable within the bin), and the targeted combinations of \code{at} values if specified.
 }
 \description{
 \code{dame} computes the distribution-weighted average marginal effects (DAME) as described in Moral, Sedashov, and Zhirnov (2017).

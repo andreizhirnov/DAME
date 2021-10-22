@@ -17,27 +17,11 @@ plot_me(
   mc = FALSE,
   iter = 1000,
   heatmap_dim = c(100, 100),
-  p = 0.05,
+  nsteps = 5,
+  smooth = FALSE,
   gradient = c("#f2e6e7", "#f70429"),
-  breaks_hor = waiver(),
-  breaks_ver = waiver(),
-  breaks_hb = waiver(),
-  breaks_hl = waiver(),
-  theme_mp = theme_bw() + theme(panel.grid.minor = element_blank(), panel.grid.major =
-    element_blank(), panel.border = element_rect(colour = "black"), axis.text.y =
-    element_text(angle = 90), axis.title.x = element_blank(), axis.title.y =
-    element_blank(), plot.margin = unit(c(0.5, 0.5, 0.01, 0.01), "lines"), aspect.ratio =
-    1, legend.position = "right"),
-  theme_hl = theme_bw() + theme(panel.border = element_rect(colour = NA),
-    panel.grid.minor = element_blank(), panel.grid.major = element_blank(),
-    axis.ticks.length = unit(0.1, "cm"), plot.margin = unit(c(0.5, 0, 0, 0.5), "lines"),
-    axis.title.y = element_text(face = "bold"), axis.title.x = element_blank(),
-    aspect.ratio = 5),
-  theme_hb = theme_bw() + theme(panel.border = element_rect(colour = NA),
-    panel.grid.minor = element_blank(), panel.grid.major = element_blank(),
-    axis.ticks.length = unit(0.1, "cm"), plot.margin = unit(c(0, 0.5, 0, 0), "lines"),
-    axis.text.y = element_text(angle = 90), axis.title.x = element_text(face = "bold"),
-    axis.title.y = element_blank(), aspect.ratio = 1/5)
+  p = 0.05,
+  weights = NULL
 )
 }
 \arguments{
@@ -68,10 +52,10 @@ are fixed at their means, and all factor variables are set to their modes.}
 
 \item{heatmap_dim}{Numeric vector containin the number of rows and columns used for drawing the heatmap. Default = 100 each.}
 
-\item{p}{Singificance level for the marginal effects. Default = 0.05.}
-
 \item{gradient}{String vector representing color gradient for the contour plot. First element
 is the color of the lowest value, and second element is the color of the highest value.}
+
+\item{p}{Singificance level for the marginal effects. Default = 0.05.}
 
 \item{breaks_hor}{Numeric vector of breaks for the horizontal axis ("over" variable) \code{waiver()} by default.}
 
@@ -83,11 +67,11 @@ is the color of the lowest value, and second element is the color of the highest
 \item{breaks_hl}{Numeric vector specifying probability axis for the left histogram.
 \code{waiver()} by default.}
 
-\item{theme_mp}{The theme for the main panel. Function \code{theme} from \code{ggplot2} package.}
-
 \item{theme_hl}{The theme for the left panel. Function \code{theme} from \code{ggplot2} package.}
 
 \item{theme_hb}{The theme for the bottom panel. Function \code{theme} from \code{ggplot2} package.}
+
+\item{theme_mp}{The theme for the main panel. Function \code{theme} from \code{ggplot2} package.}
 }
 \description{
 \code{plot_me} combines a heatmap of the marginal effects of a variable with the elements representing

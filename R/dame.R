@@ -17,7 +17,7 @@
 #' @param use_distinct_values logical; if TRUE, the function uses all unique values of the \code{over} variable; ignored if \code{bin_id} is specified.
 #' @param discrete A logical variable. If TRUE, the function will compute the effect of a discrete change in \code{x}. If FALSE, the function will compute the partial derivative of \code{x}.
 #' @param discrete_step The size of a discrete change in \code{x} used in computations (used only if \code{discrete=TRUE}).
-#' @param at A named list of values of independent variables. These variables will be set to these value before computations. All other quantitative variables (except \code{x} and \code{over}) will be set to their means. All other factor variables will be set to their modes.
+#' @param at A named list of values of independent variables. These variables will be set to these value before computations.
 #' @param mc A logical variable. If TRUE, the function will compute standard errors and sampling quantiles using Monte-Carlo simulations. If FALSE, the function will use the delta method.
 #' @param pct A numeric vector with the sampling quantiles to be output with the DAME estimates. Default = \code{c(2.5,97.5)}.
 #' @param iter the number of interations used in Monte-Carlo simulations. Default = 1,000.
@@ -30,8 +30,8 @@
 #' King, Garry, Michael Tomz, and Jason Wittenberg. 2000. ``Making the Most of Statistical Analyses: Improving Interpretation and Presentation.'' \emph{American Journal of Political Science} 44(2): 341-355.
 
 #' Moral, Mert, Evgeny Sedashov, and Andrei Zhirnov. (2017) ``Taking Distributions Seriously Interpreting the Effects of Constitutive Variables in Nonlinear Models with Interactions.'' Working paper.
-#' @return \code{dame} returns a data frame with the estimates of the distribution-weighted average marginal effects, standard errors, confidence intervals, the corresponding bin IDs (by default, the median value 
-#' of the condiotionning variable within the bin), and the targeted combinations of \code{at} values if specified.
+#' @return \code{dame} returns a data frame with the estimates of the distribution-weighted average marginal effects, standard errors, confidence intervals, the corresponding bin IDs (by default, the median value
+#' of the conditioning variable within the bin), and the targeted combinations of \code{at} values if specified.
 #' @examples
 #' ##poisson regression with 2 variables and an interaction between them
 #' #fit the regression first
@@ -47,67 +47,83 @@ dame <- function(x, over = NULL, model = NULL,
                  nbins = 10, bin_id = NULL, use_distinct_values = FALSE,
                  discrete = FALSE, discrete_step = 1, at = NULL, mc = FALSE,
                  pct = c(2.5, 97.5), iter = 1000, weights = NULL) {
-  # extract arguments from the call
-  args <- as.list(match.call())
-  if (!("formula" %in% names(args))) args[["formula"]] <- eval(args[["model"]])[["formula"]]
-  if (!("data" %in% names(args))) args[["data"]] <- eval(args[["model"]])[["data"]]
-  if (!("link" %in% names(args))) args[["link"]] <- eval(args[["model"]])[["family"]][["link"]]
-  if (!("coefficients" %in% names(args))) args[["coefficients"]] <- stats::coef(eval(args[["model"]]))
-  if (!("variance" %in% names(args))) args[["variance"]] <- stats::vcov(eval(args[["model"]]))
-  if (is.null(weights)) weights <- rep(1, nrow(data))
-# check the required arguments and coerce the specified arguments into a proper class
-  checks <- list(
-    required=c("x","formula","data","link","coefficients","variance"),
-    types = list(x ="character", over = "character", data = "data.frame", link = "character", formula  = "formula",
-                 coefficients= "numeric", variance = "matrix", discrete = "logical", discrete_step = "numeric",
-                 at= "list", mc = "logical", pct = "numeric", iter = "integer"),
-    lengths = list(x = 1L, link = 1L, discrete = 1L, discrete_step = 1L, mc = 1L, iter = 1L)
-    )
-  check.args(args=args, checks=checks)
 
-  # check if x, over, at variables are included in the formula
-  updform <- args[["formula"]]
-  updform[[2L]] <- NULL
-  allvars <- all.vars(updform)
-  outside.formula <- setdiff(c(x,over,names(at)),allvars)
+# compute the derivatives
+  link <- link[1]
+  if (is.null(link)) link <- eval(model)[["family"]][["link"]]
+  check.required("link","character")
+  if (!(link %in% c("logit","probit","cauchit","cloglog","identity","log","sqrt","1/mu^2","inverse"))) {
+      stop("Invalid link name. Valid links include 'logit','probit','cauchit','cloglog','identity','log','sqrt','1/mu^2','inverse'", call. = FALSE)
+  }
+
+  calc <- make.dydm(link=link)
+
+# make a data frame specific to DAME
+  obj <- list(data=data)
+  if (is.null(obj[["data"]])) obj[["data"]] <- eval(model)[["data"]]
+  check.required("data","data.frame", list=obj)
+
+  obj[["bin_id"]] <- eval(bin_id)
+  if (!is.null(obj[["bin_id"]]) && !is.numeric(obj[["bin_id"]])) stop("'bin_id' must be a numeric vector", call. = FALSE)
+  if (!is.null(obj[["bin_id"]]) && length(obj[["bin_id"]]) != nrow(obj[["data"]])) stop("'bin_id' must have the same length as the dataset", call. = FALSE)
+  if (is.null(obj[["bin_id"]])) {
+    if (inherits(over, "character") && use_distinct_values) {
+      obj[["bin_id"]] <- obj[["data"]][[over]]
+    } else if (inherits(over, "character") && !is.null(obj[["data"]][[over]])) {
+      obj[["bin_id"]] <- make.bins(obj[["data"]][[over]], nbins)
+    } else {
+      obj[["bin_id"]] <- rep(1, nrow(obj[["data"]]))
+    }
+  }
+  calc[["formula"]] <- formula
+  if (is.null(calc[["formula"]])) calc[["formula"]] <- eval(model)[["formula"]]
+  calc[["formula"]][[2L]] <- NULL
+  check.required("formula","formula", list=calc)
+
+  obj[["allvars"]] <- all.vars(calc[["formula"]])
+
+  calc[["x"]] <- x
+  check.required("x","character", list=calc)
+  outside.formula <- setdiff(c(calc[["x"]],over,names(at)),obj[["allvars"]])
   if (length(outside.formula)>0) stop(paste("Failed to find the following variables in the formula:",outside.formula,sep="\n"), call. = FALSE)
   # check if x and over variables are included in the data
-    outside.data <- setdiff(c(x,over),names(data))
+  outside.data <- setdiff(c(calc[["x"]],over),names(obj[["data"]]))
   if (length(outside.data)>0) stop(paste("Failed to find the following variables in the dataset:",outside.data,sep="\n"), call. = FALSE)
 
-  # misc checks
-  if (!is.null(pct)) {
-    for (p in pct) {
-      if (p > 100 | p <= 0) stop("Error: 'pct' must be between 0 and 100", call. = FALSE)
-    }
-  }
-  names(pct) <- paste0("p",pct)
-  if (!is.null(link)) {
-    if (!(link %in% c("logit","probit","cauchit","cloglog","identity","log","sqrt","1/mu^2","inverse"))) {
-      stop("Invalid link name. Valid links include 'logit','probit','cauchit','cloglog','identity','log','sqrt','1/mu^2','inverse'", call. = FALSE)
-    }
-  }
-# preliminaries
-  dyli <- make.dydm(link=link)
-# make a data frame specific to DAME
-  if (!is.null(args[["bin_id"]])) {
-    bin_id <- eval(args[["bin_id"]])
-  } else if (use_distinct_values) {
-    bin_id <- args[["data"]][[args[["over"]]]]
-  } else {
-    bin_id <- make.bins(args[["data"]][[args[["over"]]]], nbins)
-  }
-  mfli <- makeframes.dame(data=args[["data"]],allvars=allvars,at=at,bin_id=bin_id, weights=weights)
+  if (length(at)>0) obj[["at"]] <- as.list(at)
+
+  obj[["weights"]] <- eval(weights)
+  if (!is.null(obj[["weights"]]) && !is.numeric(obj[["weights"]])) stop("'weights' must be a numeric vector", call. = FALSE)
+  if (!is.null(obj[["weights"]]) && length(obj[["weights"]]) != nrow(obj[["data"]])) stop("'weights' must have the same length as the dataset", call. = FALSE)
+  if (is.null(obj[["weights"]])) obj[["weights"]] <- rep(1, nrow(obj[["data"]]))
+
+  calc <- c(calc, do.call("makeframes.dame", obj))
+
 # computation
+  calc[["discrete"]] <- discrete
+  calc[["discrete_step"]] <- discrete_step
+  calc[["coefficients"]] <- coefficients
+  if (is.null(calc[["coefficients"]])) calc[["coefficients"]] <- stats::coef(model)
+  check.required("coefficients", "numeric", list=calc)
+
+  calc[["variance"]] <- variance
+  if (is.null(calc[["variance"]])) calc[["variance"]] <- stats::vcov(model)
+  check.required("variance", "matrix", list=calc)
+
+  calc[["pct"]] <- pct
+  check.required("pct", "numeric", list=calc)
+  names(calc[["pct"]]) <- paste0("p",pct)
+  if (any(calc[["pct"]] > 100) || any(calc[["pct"]] <0)) stop("Error: 'pct' must be between 0 and 100", call. = FALSE)
+
   if (mc) {
-  effects <- simulated.me(discrete=discrete, discrete_step=discrete_step, iter=iter, coefficients=args[["coefficients"]], variance=args[["variance"]],
-                           data=mfli[["data.compressed"]], x = x, formula=updform, ym=dyli[["ym"]], mx=mx, dydm=dyli[["dydm"]], wmat=mfli[["wmat"]], pct=pct)
+  calc[["iter"]] <- as.integer(iter)
+  if (calc[["iter"]] < 1) stop("Error: 'iter' must be positive.", call. = FALSE)
+  effects <- do.call("simulated.me", calc)
   } else {
-  effects <- analytical.me(discrete=discrete, discrete_step=discrete_step, coefficients=args[["coefficients"]], variance=args[["variance"]],
-                                 data=mfli[["data.compressed"]], x = x, formula=updform, ym=dyli[["ym"]], mx=mx, dydm=dyli[["dydm"]], d2ydm2=dyli[["d2ydm2"]], wmat=mfli[["wmat"]], pct=pct)
+    effects <- do.call("analytical.me", calc)
   }
  # merge with other variables
-  if (nrow(mfli$grid) > 0) effects <- cbind(effects,mfli$grid)
+  if (nrow(calc[["grid"]]) > 0) effects <- cbind(effects, calc[["grid"]])
   rownames(effects) <- c()
   return(effects)
 }

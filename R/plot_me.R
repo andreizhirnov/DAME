@@ -33,243 +33,117 @@
 #' @param theme_mp The theme for the main panel. Function \code{theme} from \code{ggplot2} package.
 #' @author \code{plot_me} visualizes ME procedure described in Moral, Sedashov, and Zhirnov (2017)
 #' using the tools from \code{ggplot2} package.
-#'
 #' @references
 #' Moral, Mert, Evgeny Sedashov, and Andrei Zhirnov. (2017) ``Taking Distributions Seriously
 #' Interpreting the Effects of Constitutive Variables in Nonlinear Models with Interactions.'' Working paper.
-#' @details \code{plot_me} provides a convenient way to interpret two-way interactions using
-#' a heatmap with the histograms of the independent variables on x and y axis. Procedure allows users to customize the
-#' plot using functions and layers from the \code{ggplot2} package. For instance, the look
-#' of contour plot and histograms is fully customizable, but the overall style (histograms on the
-#' left and on the bottom with contourplot in the center) is preserved for all plots.
+#' @details \code{plot_me} provides a convenient way to interpret two-way interactions using heatmaps.
+#' It returns a ggplot object, which allows users to customize the plot using functions and layers from the \code{ggplot2} package.
 #' @examples
 #' ##Poisson regression with 2 variables and interaction between them
+#' \donttest{
 #' data <- data.frame(y = rpois(10000, 10), x2 = rpois(10000, 5), x1 = rpois(10000, 3))
 #' y <- glm(y ~ x1 + x2 + x1*x2, data = data, family = "poisson")
+#' ## A heatmap with 4 areas (the default)
 #' plot_me(model = y, data = data, x = "x1", over = "x2")
+#' ## A heatmap with smooth transition of colors
+#' plot_me(model = y, data = data, x = "x1", over = "x2", smooth=TRUE)
+#' ## A heatmap with histograms at the edges
+#' library(ggExtra)
+#' gt <- g + theme(legend.position="left")
+#' ggExtra::ggMarginal(gt, type="histogram", data=data, x=z, y=x)
+#' ## if more control over the histograms needed:
+#' nbins <- sapply(data[c("x","z")], grDevices::nclass.FD)
+#' ggExtra::ggMarginal(gt, type="histogram", data=data, x=z, y=x, xparams=list(bins=nbins['z']), yparams=list(bins=nbins['x']))
+#' }
 #' @export
-#' @import ggplot2
-#' @import grid
-#' @import gtable
 
 plot_me <- function(x, over, model = NULL, data = NULL,
                     link = NULL, formula = NULL, coefficients = NULL, variance = NULL,
                     at = NULL, mc = FALSE, iter = 1000,
-                    heatmap_dim = c(100,100),
-                    p = 0.05,
-                    gradient=c("#f2e6e7", "#f70429"),
-                    breaks_hor=waiver(), breaks_ver=waiver(),
-                    breaks_hb=waiver(), breaks_hl=waiver(),
-                    theme_mp=theme_bw() + theme(panel.grid.minor = element_blank(),
-                                                panel.grid.major = element_blank(),
-                                                panel.border = element_rect(colour = "black"),
-                                                axis.text.y = element_text(angle = 90),
-                                                axis.title.x = element_blank(),
-                                                axis.title.y = element_blank(),
-                                                plot.margin = unit(c(0.5, 0.5, 0.01, 0.01), "lines"),
-                                                aspect.ratio = 1,
-                                                legend.position = "right"),
-                    theme_hl=theme_bw() + theme(panel.border = element_rect(colour = NA),
-                                                panel.grid.minor = element_blank(),
-                                                panel.grid.major = element_blank(),
-                                                axis.ticks.length = unit(0.1, "cm"),
-                                                plot.margin = unit(c(0.5, 0, 0, 0.5), "lines"),
-                                                axis.title.y = element_text(face = "bold"),
-                                                axis.title.x = element_blank(),
-                                                aspect.ratio = 5),
-                    theme_hb=theme_bw() + theme(panel.border = element_rect(colour = NA),
-                                                panel.grid.minor = element_blank(),
-                                                panel.grid.major = element_blank(),
-                                                axis.ticks.length = unit(0.1, "cm"),
-                                                plot.margin= unit(c(0, 0.5, 0, 0), "lines"),
-                                                axis.text.y = element_text(angle=90),
-                                                axis.title.x = element_text(face = "bold"),
-                                                axis.title.y = element_blank(),
-                                                aspect.ratio = 1/5)) {
-  # extract arguments from the call
+                    heatmap_dim = c(100,100), nsteps=4, smooth=FALSE, gradient=c("#f2e6e7", "#f70429"),
+                    p = 0.05, weights = NULL) {
+
+  if (!requireNamespace("ggplot2", quietly = TRUE)) {
+    stop("Package \"ggplot2\" needed for this function to work. Please install it.",call. = FALSE)
+  }
+
   args <- as.list(match.call())
-  if (!("formula" %in% names(args))) args[["formula"]] <- eval(args[["model"]])[["formula"]]
-  if (!("data" %in% names(args))) args[["data"]] <- eval(args[["model"]])[["data"]]
-  if (!("link" %in% names(args))) args[["link"]] <- eval(args[["model"]])[["family"]][["link"]]
-  if (!("coefficients" %in% names(args))) args[["coefficients"]] <- stats::coef(eval(args[["model"]]))
-  if (!("variance" %in% names(args))) args[["variance"]] <- stats::vcov(eval(args[["model"]]))
+  obj <- lapply(args[intersect(names(formals(me)), names(args))], eval)
 
-  # check the required arguments and coerce the specified arguments into a proper class
-  checks <- list(
-    required=c("x","over","formula","data","link","coefficients","variance"),
-    types = list(x = "character", over = "character",  data = "data.frame", link = "character", formula = "formula", coefficients = "numeric", variance = "matrix", at = "list",
-                 mc = "logical", iter = "integer", heatmap_dim = "integer", p = "numeric", gradient = "character", breaks_hor = "numeric", breaks_ver = "numeric", breaks_hb = "numeric", breaks_hl = "numeric",
-                 theme_mp = "theme", theme_hl = "theme", theme_hb = "theme"),
-    lengths = list(x = 1L, over = 1L, link = 1L, mc = 1L, iter = 1L, heatmap_dim = 2L, p = 1L, gradient = 2L)
-  )
-  check.args(args=args, checks=checks)
+  if (is.null(formula)) formula <- model[["formula"]]
+  formula[[2L]] <- NULL
+  check.required("formula","formula")
+  allvars <- all.vars(formula)
 
-  # check if x, over, at variables are included in the formula
-  updform <- formula
-  updform[[2L]] <- NULL
-  allvars <- all.vars(updform)
+  check.required("x","character")
+  check.required("over","character")
+
+  if (is.null(data)) data <- eval(model)[["data"]]
+  check.required("data","data.frame")
+
   outside.formula <- setdiff(c(x,over,names(at)),allvars)
-  if (length(outside.formula)>0) stop(paste("Failed to find the following variables in the formula:",outside.formula,sep="\n"), call. = FALSE)
-  # check if x and over variables are included in the data
+  if (length(outside.formula)>0) stop(paste("Failed to find the following variables in the formula:",outside.formula,collapse="\n"), call. = FALSE)
   outside.data <- setdiff(c(x,over),names(data))
-  if (length(outside.data)>0) stop(paste("Failed to find the following variables in the dataset:",outside.data,sep="\n"), call. = FALSE)
-  # misc checks
-  if (!is.null(at)) {
-    for (i in 1:length(at)) {
-      if (length(at[[i]])!=1) stop("Error: Each 'at' variable must have one value", call. = FALSE)
-    }
-  }
-  if (!is.null(p)) {
-    if (p > 1 | p <= 0) stop("Error: 'p' must be between 0 and 1", call. = FALSE)
-  }
+  if (length(outside.data)>0) stop(paste("Failed to find the following variables in the dataset:",outside.data,collapse="\n"), call. = FALSE)
 
-  if (!is.null(link)) {
-    if (!(link %in% c("logit","probit","cauchit","cloglog","identity","log","sqrt","1/mu^2","inverse"))) {
-      stop("Invalid link name. Valid links include 'logit','probit','cauchit','cloglog','identity','log','sqrt','1/mu^2','inverse'", call. = FALSE)
-    }
+  if (length(weights) != nrow(data)) weights <- rep(1,nrow(data))
+
+  tomeans <- setdiff(allvars, c(x,over,names(at)))
+  names(tomeans) <- tomeans
+
+  obj[["at"]] <- as.list(at)
+  if (length(tomeans)>0) obj[["at"]] <- c(obj[["at"]], lapply(tomeans, find.central, data=data, weights=weights))
+
+  obj[["pct"]] <- 100*c(p/2, (1-p/2))
+
+
+# data for heatmaps
+  grid.li <- list(
+    x = seq(from = min(data[[x]], na.rm=TRUE), to = max(data[[x]], na.rm=TRUE), length.out = heatmap_dim[1]),
+    over = seq(from = min(data[[over]], na.rm=TRUE), to = max(data[[over]], na.rm=TRUE), length.out = heatmap_dim[2])
+    )
+  obj[["data"]] <- grid <- expand.grid(grid.li)
+  colnames(obj[["data"]]) <- c(x,over)
+  plotdata.hm <- do.call("me",obj)
+  plotdata.hm <- merge(grid, plotdata.hm, by.x=c("x","over"), by.y=c(x,over))
+  plotdata.hm[["sig"]] <- factor(rowSums(plotdata.hm[paste0("p", obj[["pct"]])]>0) %% 2, levels=c(0,1), labels=paste0(c("p<","p>"),p))
+
+# data for scatterplots
+  temp <- aggregate(list("nobs" = weights), by = list(x=data[[x]], over=data[[over]]), FUN = sum, na.action=NULL, na.rm=TRUE)
+  for (j in c("x","over")) {
+    bm <- data.frame(y.n=grid.li[[j]][seq_len(length(grid.li[[j]])-1)],
+                     y.x=grid.li[[j]][seq_len(length(grid.li[[j]])-1)+1])
+    bm[1,"y.n"] <- -Inf
+    bm[nrow(bm),"y.x"] <- Inf
+    temp <- merge(temp, bm, by=NULL)
+    temp <- temp[temp[[j]]>temp$y.n & temp[[j]]<=temp$y.x,]
+    d.n <- abs(temp$y.n-temp[[j]])
+    d.x <- abs(temp$y.x-temp[[j]])
+    temp[[j]] <- temp$y.x
+    temp[[j]][which(d.x > d.n)] <- temp$y.n[which(d.x > d.n)]
+    temp <- temp[,c("nobs","x","over"), drop=FALSE]
   }
-  # preliminaries
-  condvar <- setdiff(allvars,x)
-  dyli <- make.dydm(link=link)
-  colsum <- c(at,lapply(data[intersect(allvars,setdiff(names(data),c(names(at),x,over)))], function(x) if (is.numeric(x)) return(mean(x,na.rm=TRUE)) else return(find.mode(x))))
-  # prepare dataframe for heatmap
-  data.hm <- list()
-  data.hm[[x]] <- seq(from = min(data[[x]]), to = max(data[[x]]), length.out = heatmap_dim[2])
-  data.hm[[over]] <- seq(from = min(data[[over]]), to = max(data[[over]]), length.out = heatmap_dim[1])
-  data.hm <- data.frame(c(expand.grid(data.hm),colsum))
-  # prepare dataframe for scatterplots
-  newdata <- na.omit(data)
-  data.sp <- as.data.frame(c(aggregate(list("nobs" = 1L:nrow(newdata)), by = newdata[c(x,over)], FUN = length),colsum))
-  data.hb <- aggregate(list("proportion" = 1L:nrow(newdata)), by = newdata[over], FUN = length)
-  data.hb[["proportion"]] <- data.hb[["proportion"]]/sum(data.hb[["proportion"]])
-  data.hl <- aggregate(list("proportion" = 1L:nrow(newdata)), by = newdata[x], FUN = length)
-  data.hl[["proportion"]] <- data.hl[["proportion"]]/sum(data.hl[["proportion"]])
-  # compute ME
-  mf.hm <- stats::model.frame(formula = updform, data = data.hm)
-  mf.sp <- stats::model.frame(formula = updform, data = data.sp)
-  mmat.hm <- stats::model.matrix(object = updform, data = mf.hm)
-  mmat.sp <- stats::model.matrix(object = updform, data = mf.sp)
-  beta.names <- intersect(names(coefficients),colnames(mmat.hm))
-  if (length(beta.names) == 0) stop("Failed to associate the coefficients with the columns names in the dataset", call. = FALSE)
-  coef_vect <- matrix(coefficients[beta.names],nrow=1L)
-  var_covar <- variance[beta.names,beta.names]
-  mmat.hm <- mmat.hm[,beta.names,drop=FALSE]
-  mmat.sp <- mmat.sp[,beta.names,drop=FALSE]
-  dmli <- make.dmdx(formula=formula,bnames=beta.names,xvarname=x)
-  if (mc) {
-    coef_matrix <- MASS::mvrnorm(n = iter, mu = coef_vect, Sigma = var_covar, empirical = TRUE)
-    me_matrix.hm <- dyli[["dydm"]](mx(mmat = mmat.hm, coefficients = coef_matrix)) * dmli[["dmdx"]](mmat = mmat.hm, data=data.hm, coefficients = coef_matrix)
-    me_matrix.sp <- dyli[["dydm"]](mx(mmat = mmat.sp, coefficients = coef_matrix)) * dmli[["dmdx"]](mmat = mmat.sp, data=data.sp, coefficients = coef_matrix)
-    estimate.hm <- colMeans(me_matrix.hm)
-    plotdata.sp <- data.frame("estimate" = colMeans(me_matrix.sp), "se" = apply(me_matrix.sp, 2L, stats::sd))
+  temp <- aggregate(nobs ~ x + over, data=temp, FUN = sum, na.action=NULL, na.rm=TRUE)
+  plotdata <- merge(plotdata.hm, temp, by=c("x","over"), all=TRUE)
+
+# plot
+  nsteps <- round(nsteps,0)
+  if (abs(min(plotdata$est)) > max(plotdata$est)) gradient <- gradient[c(2,1)]
+  if (!smooth && nsteps >1) {
+    shading <- ggplot2::scale_fill_steps(low = gradient[1], high = gradient[2], n.breaks=nsteps[1])
   } else {
-    estimate.hm <- as.vector(dyli[["dydm"]](mx(mmat = mmat.hm, coefficients = coef_vect)) * dmli[["dmdx"]](mmat = mmat.hm, data=data.hm, coefficients = coef_vect))
-    plotdata.sp <- data.frame("estimate" = as.vector(dyli[["dydm"]](mx(mmat = mmat.sp, coefficients = coef_vect)) * dmli[["dmdx"]](mmat = mmat.sp, data=data.sp, coefficients = coef_vect)))
-    m_0 <- as.vector(mx(mmat = mmat.sp, coefficients = coef_vect))
-    L <- dyli[["d2ydm2"]](m_0)*as.vector(dmli[["dmdx"]](mmat = mmat.sp, data=data.sp, coefficients = coef_vect))*dmli[["dmdb"]](mmat = mmat.sp, data=data.sp) + dyli[["dydm"]](m_0)*dmli[["d2mdxdb"]](mmat=mmat.sp, data = data.sp)
-    var <- as.vector(apply(L,1L, function(x) (x %*% var_covar) %*% x))
-    var[var < 0] <- 0
-    plotdata.sp[["se"]] <- sqrt(var)
+    shading <- ggplot2::scale_fill_gradient(low = gradient[1], high = gradient[2])
   }
-  plotdata.sp[["vertical"]] <- data.sp[[x]]
-  plotdata.sp[["horizontal"]] <- data.sp[[over]]
-  plotdata.sp[["size"]] <- data.sp[["nobs"]]/sum(data.sp[["nobs"]])
-  plotdata.sp[["prob0"]] <- with(plotdata.sp, stats::pnorm(q = 0, mean = estimate, sd = se))
-  plotdata.sp[["significance"]] <- with(plotdata.sp, ifelse((prob0 < p/2 | prob0 > 1-p/2),"Significant","Not Significant"))
-  #limits to the axes
-  hor_range <- max(data[[over]]) - min(data[[over]])
-  ver_range <- max(data[[x]]) - min(data[[x]])
-  hor_limits <- c((min(data[[over]])-0.05*hor_range),(max(data[[over]])+0.05*hor_range))
-  ver_limits <- c((min(data[[x]])-0.05*ver_range),(max(data[[x]])+0.05*ver_range))
-  #plotting by part
-  mainpanel <- ggplot(data = data.hm, aes_string(x = over, y = x)) +
-    geom_raster(aes(fill = estimate.hm), interpolate=TRUE) +
-    geom_point(data = plotdata.sp,
-               aes_string(x = "horizontal", y = "vertical", size = "size", shape = "significance"),
-               color = "black") +
-    scale_shape_manual(values=c(1,16))+
-    scale_fill_gradient(low = gradient[1], high = gradient[2])+
-    scale_x_continuous(limits = hor_limits, position = "top", breaks = breaks_hor, expand = c(0,0))+
-    scale_y_continuous(limits = ver_limits, position = "right", breaks = breaks_ver, expand = c(0,0))+
-    guides(fill = guide_colourbar(order = 1),
-           shape = guide_legend(order = 2),
-           size = FALSE)+
-    labs(fill="Marginal Effect", shape=paste0("Significance\n(p=",p,")"))+
-    theme_mp
-  hb <- ggplot(data = data.hb, aes_string(x = over, y="proportion")) +
-    geom_col() +
-    scale_x_continuous(limits = hor_limits, position = "bottom", breaks = breaks_hor, expand = c(0,0)) +
-    scale_y_reverse(position = "right", breaks = breaks_hb) +
-    theme_hb
-  hl <- ggplot(data = data.hl, aes_string(x = x, y="proportion")) +
-    geom_col() +
-    scale_x_continuous(limits = ver_limits, position = "bottom", breaks = breaks_ver, expand = c(0,0)) +
-    scale_y_reverse(position = "right", breaks = breaks_hl) +
-    theme_hl +  coord_flip()
-  gt1 <- ggplot_gtable(ggplot_build(mainpanel))
-  gt2 <- ggplot_gtable(ggplot_build(hb))
-  gt3 <- ggplot_gtable(ggplot_build(hl))
-  # adjust the grids if the number of columns is different between the plots
-  findnull <- function(what) {
-    for (i in 1:length(what)) {
-      if (is.null(attr(what[[i]],"unit"))) { next }
-      else if (attr(what[[i]],"unit") == "null") {
-        return(i)
-        break
-      }
-    }
-    return(0)
-  }
-  adj <- findnull(gt1[["widths"]]) - findnull(gt2[["widths"]])
-  if (adj>0) {
-    gt2 <- gtable::gtable_add_cols(x = gt2, widths = grid::unit(rep(0,adj),"cm"), pos = 0)
-  } else if (adj<0) {
-    gt1 <- gtable::gtable_add_cols(x = gt1, widths = grid::unit(rep(0,-adj),"cm"), pos = 0)
-  }
-  adj <- length(gt1[["widths"]]) - length(gt2[["widths"]])
-  if (adj>0) {
-    gt2 <- gtable::gtable_add_cols(x = gt2, widths = grid::unit(rep(0,adj),"cm"), pos = -1)
-  } else if (adj<0) {
-    gt1 <- gtable::gtable_add_cols(x = gt1, widths = grid::unit(rep(0,adj<0),"cm"), pos = -1)
-  }
-  gt <- rbind(gt1, gt2, size="first")
-  adj <- findnull(gt[["heights"]]) - findnull(gt3[["heights"]])
-  if (adj>0) {
-    gt3 <- gtable::gtable_add_rows(x = gt3, heights = grid::unit(rep(0,adj),"cm"), pos = 0)
-  } else if (adj<0) {
-    gt <- gtable::gtable_add_rows(x = gt, heights = grid::unit(rep(0,-adj),"cm"), pos = 0)
-  }
-  adj <- length(gt[["heights"]]) - length(gt3[["heights"]])
-  if (adj>0) {
-    gt3 <- gtable::gtable_add_rows(x = gt3, heights = grid::unit(rep(0,adj),"cm"), pos = -1)
-  } else if (adj<0) {
-    gt <- gtable::gtable_add_rows(x = gt, heights = grid::unit(rep(0,-adj),"cm"), pos = -1)
-  }
-  mid1 <- length(gt[["heights"]])
-  mid2 <- length(gt3[["heights"]])
-  gt <- cbind(gt3, gt, size="last")
-  ar_l <- ifelse(is.null(theme_hl[["aspect.ratio"]]),1/5,theme_hl[["aspect.ratio"]])
-  ar_m <- ifelse(is.null(theme_mp[["aspect.ratio"]]),1,theme_mp[["aspect.ratio"]])
-  ar_b <- ifelse(is.null(theme_hb[["aspect.ratio"]]),5,theme_hb[["aspect.ratio"]])
-  c_widths <- c(1L,ar_l/ar_m)
-  c_heights <- c(ar_m/ar_b,1L)
-  # adjust the widths and heights according to the aspect ratios
-  adjust_dim <- function(what,value){
-    result <- what
-    for (i in 1L:length(result)) {
-      if (is.null(attr(result[[i]],"unit"))) { next }
-      else if (attr(result[[i]],"unit") == "null") {result[[i]][[1L]] <- value}
-    }
-    result
-  }
-  range_l <- seq_along(gt3[["widths"]])
-  range_r <- (length(gt3[["widths"]])+1L):length(gt[["widths"]])
-  range_t <- seq_along(gt1[["heights"]])
-  range_b <- (length(gt1[["heights"]])+1L):length(gt[["heights"]])
-  gt[["widths"]][range_l] <- adjust_dim(gt[["widths"]][range_l],c_widths[1L])
-  gt[["widths"]][range_r] <- adjust_dim(gt[["widths"]][range_r],c_widths[2L])
-  gt[["heights"]][range_t] <- adjust_dim(gt[["heights"]][range_t],c_heights[1L])
-  gt[["heights"]][range_b] <- adjust_dim(gt[["heights"]][range_b],c_heights[2L])
-  grid.newpage()
-  grid.draw(gt)
+  ggplot2::ggplot(data = plotdata, aes_string(x = "over", y = "x")) +
+    ggplot2::geom_raster(aes_string(fill = "est"), interpolate=FALSE) +
+    ggplot2::geom_point(aes_string(size = "nobs", shape = "sig"), color = "black", data=subset(plotdata, !is.na(nobs))) +
+    ggplot2::scale_shape_manual(values=c(16L,1L), drop=FALSE) +
+    shading +
+    ggplot2::guides(fill = guide_colourbar(order = 1L), shape = guide_legend(order = 2L), size = "none") +
+    ggplot2::labs(fill="Effect Size", shape=element_blank(), x=over, y=x) +
+    ggplot2::theme_bw() +
+    ggplot2::theme(panel.grid.minor = element_blank(),
+           panel.grid.major = element_blank(), panel.border = element_rect(colour = "black"),
+           aspect.ratio = 1, legend.position = "right")
 }
+

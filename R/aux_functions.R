@@ -90,9 +90,23 @@ make.dmdx <- function(formula, bnames, xvarname) {
   list(dmdx=dmdx,dmdb=dmdb,d2mdxdb=d2mdxdb)
 }
 
-find.mode <- function(x) {
-  ux <- unique(x[!is.na(x)])
-  ux[which.max(tabulate(match(x, ux)))]
+find.central <- function(x,data,weights=NULL) {
+  y <- data[[x]]
+  if (is.numeric(y) && length(weights) != length(y)) {
+    mean(y,na.rm=TRUE)
+  } else if (is.numeric(y)) {
+    sum(y*weights, na.rm=TRUE)/sum((1-is.na(y))*weights, na.rm=TRUE)
+  } else if (length(weights) != length(y)) {
+    y <- as.factor(y)
+    lev <- levels(y)
+    tab <- tabulate(match(y, lev))
+    factor(lev[which.max(tab)], levels=lev)
+  } else {
+    y <- as.factor(y)
+    lev <- levels(y)
+    tab <- aggregate(weights ~ y, FUN=sum, na.action=NULL, na.rm=TRUE)
+    factor(tab$y[which.max(tab$weights)], levels=lev)
+  }
 }
 
 make.bins <- function(x, nbins) {
@@ -102,7 +116,7 @@ make.bins <- function(x, nbins) {
   mp[match(cuts,mp$cuts) ,"x"]
 }
 
-simulated.me <- function(discrete, discrete_step, iter, coefficients, variance, data, x, formula, ym, mx, dydm, wmat = NULL, pct) {
+simulated.me <- function(discrete, discrete_step=1, iter, coefficients, variance, data, x, formula, ym, dydm, wmat = NULL, pct, ...) {
   mf <- stats::model.frame(formula = formula, data = data)
   mmat <- stats::model.matrix(object = formula, data = mf)
   beta.names <- intersect(names(coefficients),colnames(mmat))
@@ -155,7 +169,7 @@ simulated.me <- function(discrete, discrete_step, iter, coefficients, variance, 
   data.frame(est=as.vector(est),se=se,quantiles)
 }
 
-analytical.me <- function(discrete, discrete_step, coefficients, variance, data, x, formula, ym, mx, dydm, d2ydm2, wmat = NULL, pct) {
+analytical.me <- function(discrete, discrete_step=1, coefficients, variance, data, x, formula, ym, dydm, d2ydm2, wmat = NULL, pct, ...) {
   mf <- stats::model.frame(formula = formula, data = data)
   mmat <- stats::model.matrix(object = formula, data = mf)
   beta.names <- intersect(names(coefficients),colnames(mmat))
@@ -189,25 +203,30 @@ analytical.me <- function(discrete, discrete_step, coefficients, variance, data,
   data.frame(est=as.vector(est),se=se,quantiles)
 }
 
-check.args <- function(args,checks) {
-  errors.required <- setdiff(checks[["required"]],names(args))
-  if (length(errors.required)>0) {
-    stop(paste0("Required argument '",errors.required[1],"' is missing"), call. = FALSE)
-  }
-  tocheck <- intersect(names(checks[["types"]]),names(args))
-  if (length(tocheck)>0) {
-    for (i in tocheck){
-      candidate <- NULL
-      candidate <- tryCatch(as(eval(args[[i]]),checks[["types"]][[i]]),
-                            error = function(e) return(ifelse(checks[["types"]][[i]] == "character", toString(args[[i]]), NULL)))
-      if (is.null(candidate)) stop(paste0("Error: Argument '",i,"' is not ",checks[["types"]][[i]]), call. = FALSE)
-      if (is.null(checks[["lengths"]][[i]])) {
-        assign(i, candidate, envir=parent.frame())
-      } else if (length(candidate) == checks[["lengths"]][[i]]) {
-        assign(i,candidate, envir=parent.frame())
-      } else {
-        stop(paste0("Error: Argument '",i,"' must be of length ",checks[["lengths"]][[i]]), call. = FALSE)
+check.required <- function(name, type, list = NULL) {
+  if (is.null(list)) {
+    if (!exists(name, envir=parent.frame(), inherits=FALSE)) {
+      stop(paste0("Required argument '",name[1],"' is missing"), call. = FALSE)
+    } else if (type=="character") {
+      if (!inherits(eval(as.name(name), envir=parent.frame()),type)) {
+        stop(paste0("Argument '",name[1],"' must be a character string"), call. = FALSE)
       }
+    } else {
+      candidate <- NULL
+      candidate <- tryCatch(as(eval(as.name(name), envir=parent.frame()),type), error = function(e) return(NULL))
+      if (is.null(candidate)) stop(paste0("Argument '",name[1],"' must be a ",type[1]), call. = FALSE)
+    }
+  } else {
+    if (is.null(list[[name]])) {
+      stop(paste0("Required argument '",name[1],"' is missing"), call. = FALSE)
+    } else if (type=="character") {
+      if (!inherits(list[[name]],type)) {
+        stop(paste0("Argument '",name[1],"' must be a character string"), call. = FALSE)
+      }
+    } else {
+      candidate <- NULL
+      candidate <- tryCatch(as(list[[name]],type), error = function(e) return(NULL))
+      if (is.null(candidate)) stop(paste0("Error: Argument '",name[1],"' must be a ",type[1]), call. = FALSE)
     }
   }
 }

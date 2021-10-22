@@ -17,11 +17,11 @@
 #' @param mc A logical variable. If TRUE, the function will compute standard errors and sampling quantiles using Monte-Carlo simulations. If FALSE, the function will use the delta method.
 #' @param pct A numeric vector with the sampling quantiles to be output with the DAME estimates. Default = \code{c(2.5,97.5)}.
 #' @param iter Number of interations used in Monte-Carlo simulations. Default = 1,000.
-#' @return A list of the following:
-#' \itemize{
-#' \item\code{me} A data frame with ME estimates, standard errors, quantiles of the sampling distribution, and the values of the independent variables.
-#' \item\code{execute_time} Execution time
-#' }
+#' @param weights an optional vector of sampling weights.
+#' @return \code{me} returns a data frame with the estimates of the marginal effects for each combination of the variables specified in \code{x} and \code{over},
+#' aloong with standard errors, confidence intervals, and the used values of the independent variables. All quantitative variable not included in
+#' \code{at}, \code{x} and \code{over} are set to their means, and all qualitative variables (except those listed in \code{at}, \code{x} and \code{over}) are
+#' converted to factors and set to their modes.
 #' @examples
 #' ##poisson regression with 2 variables and interaction between them
 #' #fit the regression first
@@ -33,62 +33,79 @@
 me <- function(x, over = NULL, model = NULL, data = NULL, formula = NULL, link = NULL,
                coefficients = NULL, variance = NULL,
                discrete = FALSE, discrete_step = 1, at = NULL, mc = FALSE,
-               pct = c(2.5, 97.5), iter = 1000) {
-  start_time <- Sys.time()
+               pct = c(2.5, 97.5), iter = 1000, weights = NULL) {
 
-  # extract arguments from the call
-  args <- as.list(match.call())
-  if (!("formula" %in% names(args))) args[["formula"]] <- eval(args[["model"]])[["formula"]]
-  if (!("data" %in% names(args))) args[["data"]] <- eval(args[["model"]])[["data"]]
-  if (!("link" %in% names(args))) args[["link"]] <- eval(args[["model"]])[["family"]][["link"]]
-  if (!("coefficients" %in% names(args))) args[["coefficients"]] <- stats::coef(eval(args[["model"]]))
-  if (!("variance" %in% names(args))) args[["variance"]] <- stats::vcov(eval(args[["model"]]))
-  # check the required arguments and coerce the specified arguments into a proper class
-  checks <- list(
-    required=c("x","formula","data","link","coefficients","variance"),
-    types = list(x ="character", over = "character", data = "data.frame", link = "character", formula  = "formula",
-                 coefficients= "numeric", variance = "matrix", discrete = "logical", discrete_step = "numeric",
-                 at= "list", mc = "logical", pct = "numeric", iter = "integer"),
-    lengths = list(x = 1L, link = 1L, discrete = 1L, discrete_step = 1L, mc = 1L, iter = 1L)
-  )
-  check.args(args=args, checks=checks)
 
-  # check if x, over, at variables are included in the formula
-  updform <- formula
-  updform[[2L]] <- NULL
-  allvars <- all.vars(updform)
-  outside.formula <- setdiff(c(x,over,names(at)),allvars)
-  if (length(outside.formula)>0) stop(paste("Failed to find the following variables in the formula:",outside.formula,sep="\n"), call. = FALSE)
-  # check if x and over variables are included in the data
-  outside.data <- setdiff(c(x,over),names(data))
-  if (length(outside.data)>0) stop(paste("Failed to find the following variables in the dataset:",outside.data,sep="\n"), call. = FALSE)
+  # compute the derivatives
+  link <- link[1]
+  if (is.null(link)) link <- eval(model)[["family"]][["link"]]
+  check.required("link","character")
 
-  # misc checks
-  if (!is.null(pct)) {
-    for (p in pct) {
-      if (p > 100 | p <= 0) stop("Error: 'pct' must be between 0 and 100", call. = FALSE)
-    }
+  if (!(link %in% c("logit","probit","cauchit","cloglog","identity","log","sqrt","1/mu^2","inverse"))) {
+    stop("Invalid link name. Valid links include 'logit','probit','cauchit','cloglog','identity','log','sqrt','1/mu^2','inverse'", call. = FALSE)
   }
-  names(pct) <- paste0("p",pct)
-  if (!is.null(link)) {
-    if (!(link %in% c("logit","probit","cauchit","cloglog","identity","log","sqrt","1/mu^2","inverse"))) {
-      stop("Invalid link name. Valid links include 'logit','probit','cauchit','cloglog','identity','log','sqrt','1/mu^2','inverse'", call. = FALSE)
-    }
-  }
-# preliminaries
-  dyli <- make.dydm(link=link)
-# make a data frame specific to ME
-  mfli <- makeframes.me(data=data,allvars=allvars,at=at,over=over,x=x)
-# computation
-  if (mc) {
-    to_insert <- simulated.me(discrete=discrete, discrete_step=discrete_step, iter=iter, coefficients=args[["coefficients"]], variance=args[["variance"]],
-                              data=mfli[["data.compressed"]], x = x, formula=updform, ym=dyli$ym, mx=mx, dydm=dyli$dydm, wmat = NULL, pct=pct)
+  calc <- make.dydm(link=link)
+
+  # make a data frame specific to ME
+  obj <- list(data=data)
+  if (is.null(obj[["data"]])) obj[["data"]] <- eval(model)[["data"]]
+  check.required("data","data.frame", list=obj)
+
+  calc[["formula"]] <- formula
+  if (is.null(calc[["formula"]])) calc[["formula"]] <- eval(model)[["formula"]]
+  calc[["formula"]][[2L]] <- NULL
+  check.required("formula","formula", list=calc)
+
+  allvars <- all.vars(calc[["formula"]])
+  obj[["tovary"]] <- setdiff(c(x,over),names(at))
+  tomeans <- setdiff(allvars, c(obj[["tovary"]],names(at)))
+  names(tomeans) <- tomeans
+
+  obj[["at"]] <- as.list(at)
+  if (length(tomeans)>0) obj[["at"]] <- c(obj[["at"]], lapply(tomeans, find.central, data=obj[["data"]], weights=weights))
+
+  if (length(obj[["tovary"]]) ==0) {
+    calc[["data"]] <- makeframes.mem(obj[["at"]])
   } else {
-    to_insert <- analytical.me(discrete=discrete, discrete_step=discrete_step, coefficients=args[["coefficients"]], variance=args[["variance"]],
-                               data=mfli[["data.compressed"]], x = x, formula=updform, ym=dyli$ym, mx=mx, dydm=dyli$dydm, d2ydm2=dyli$d2ydm2, wmat = NULL, pct=pct)
+    calc[["data"]] <- do.call("makeframes.me", obj)
   }
-  ## merge in other variables
-  effects <- data.frame(to_insert,mfli$data.compressed)
+
+  ## calculations
+  calc[["x"]] <- x
+  check.required("x","character", list=calc)
+
+  outside.formula <- setdiff(c(calc[["x"]],over,names(at)),allvars)
+  if (length(outside.formula)>0) stop(paste("Failed to find the following variables in the formula:",outside.formula,collapse="\n"), call. = FALSE)
+  # check if x and over variables are included in the data
+  outside.data <- setdiff(c(calc[["x"]],over),names(obj[["data"]]))
+  if (length(outside.data)>0) stop(paste("Failed to find the following variables in the dataset:",outside.data,collapse="\n"), call. = FALSE)
+
+    # computation
+  calc[["discrete"]] <- discrete
+  calc[["discrete_step"]] <- discrete_step
+  calc[["coefficients"]] <- coefficients
+  if (is.null(calc[["coefficients"]])) calc[["coefficients"]] <- stats::coef(model)
+  check.required("coefficients", "numeric", list=calc)
+
+  calc[["variance"]] <- variance
+  if (is.null(calc[["variance"]])) calc[["variance"]] <- stats::vcov(model)
+  check.required("variance", "matrix", list=calc)
+
+  calc[["pct"]] <- pct
+  check.required("pct", "numeric", list=calc)
+  names(calc[["pct"]]) <- paste0("p",pct)
+  if (any(calc[["pct"]] > 100) || any(calc[["pct"]] <0)) stop("Error: 'pct' must be between 0 and 100", call. = FALSE)
+
+  if (mc) {
+    calc[["iter"]] <- as.integer(iter)
+    if (calc[["iter"]] < 1) stop("Error: 'iter' must be positive.", call. = FALSE)
+    effects <- do.call("simulated.me", calc)
+  } else {
+    effects <- do.call("analytical.me", calc)
+  }
+  # merge with other variables
+  if (nrow(calc[["data"]]) > 0) effects <- cbind(effects, calc[["data"]])
   rownames(effects) <- c()
-  return(list("me" = effects, "execute_time" = Sys.time() - start_time))
+  return(effects)
 }
+
