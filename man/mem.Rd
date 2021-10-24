@@ -42,14 +42,15 @@ the QR components of the design matrix if arguments \code{formula}, \code{data},
 
 \item{discrete_step}{The size of a discrete change in \code{x} used in computations (used only if \code{discrete=TRUE}).}
 
-\item{at}{an optional named list of values of independent variables. These variables will be set to these value before computations. 
+\item{at}{an optional named list of values of independent variables. These variables will be set to these value before computations.
 The remaining numeric variables (except \code{x} and \code{over}) will be set to their means. The remaining factor variables will be set
 to their modes.}
 
-\item{mc}{logical. If TRUE, the standard errors and confidence intervals will be computed using simulations. 
+\item{mc}{logical. If TRUE, the standard errors and confidence intervals will be computed using simulations.
 If FALSE (default), the delta method will be used.}
 
-\item{pct}{a numeric vector with the quantiles to be output with the DAME estimates. Default = \code{c(2.5,97.5)}.}
+\item{pct}{a named numeric vector with the sampling quantiles to be output with the DAME estimates (the names are used as the new variable names).
+Default = \code{c(lb=2.5,ub=97.5)}.}
 
 \item{iter}{the number of interations used in Monte-Carlo simulations. Default = 1,000.}
 
@@ -62,4 +63,21 @@ and the used values of the independent variables. All quantitative variable not 
 }
 \description{
 \code{mem} computes the marginal effects of variable \code{x} at the specified values of \code{at} variables and the mean values of all the other variables (including \code{x}).
+}
+\examples{
+##poisson regression with 2 variables and an interaction between them
+#fit the regression first
+data <- data.frame(y = rpois(10000, 10), x2 = rpois(10000, 5),
+x1 = rpois(10000, 3), w=c("a","b","c","d"))
+y <- glm(y ~ x1*x2 + w, data = data, family = "poisson")
+#compute marginal effects at means
+mem(model = y, x = "x1", at=list(x2=seq(min(data$x2), max(data$x2), length.out=5)))
+\dontrun{
+## logit
+m <- glm(any_dispute ~ flows.ln*polity2 + gdp_pc, data=strikes, family="binomial")
+summary(m)
+## marginal effects at means with a robust (heteroscedasticity-consistent) variance-covariance matrix
+library(sandwich)
+mem(model=m, x="flows.ln", over="polity2", vcov=vcovHC(m), at=list(polity2=c(-10,0,10)))
+}
 }

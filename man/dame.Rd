@@ -48,7 +48,7 @@ the QR components of the design matrix if arguments \code{formula}, \code{data},
 \code{use_distinct_values} is TRUE.}
 
 \item{bin_id}{a numeric vector identifying the bins used for aggregating marginal effects (if not specified and \code{use_distinct_values=FALSE},
-the function uses \code{nbins} bins with roughly equal number of observations; if not specified and \code{use_distinct_values=TRUE}, the function 
+the function uses \code{nbins} bins with roughly equal number of observations; if not specified and \code{use_distinct_values=TRUE}, the function
 uses all unique values of the \code{over} variable).}
 
 \item{use_distinct_values}{logical; if TRUE, the function uses all unique values of the \code{over} variable; ignored if \code{bin_id} is specified.}
@@ -57,22 +57,23 @@ uses all unique values of the \code{over} variable).}
 
 \item{discrete_step}{The size of a discrete change in \code{x} used in computations (used only if \code{discrete=TRUE}).}
 
-\item{at}{an optional named list of values of independent variables. These variables will be set to these value before computations. 
+\item{at}{an optional named list of values of independent variables. These variables will be set to these value before computations.
 The remaining numeric variables (except \code{x} and \code{over}) will be set to their means. The remaining factor variables will be set
 to their modes.}
 
-\item{mc}{logical. If TRUE, the standard errors and confidence intervals will be computed using simulations. 
+\item{mc}{logical. If TRUE, the standard errors and confidence intervals will be computed using simulations.
 If FALSE (default), the delta method will be used.}
 
-\item{pct}{a numeric vector with the quantiles to be output with the DAME estimates. Default = \code{c(2.5,97.5)}.}
+\item{pct}{a named numeric vector with the sampling quantiles to be output with the DAME estimates (the names are used as the new variable names).
+Default = \code{c(lb=2.5,ub=97.5)}.}
 
 \item{iter}{the number of interations used in Monte-Carlo simulations. Default = 1,000.}
 
 \item{weights}{an optional vector of sampling weights.}
 }
 \value{
-\code{dame} returns a data frame with the estimates of the distribution-weighted average marginal effects, standard errors, confidence intervals, 
-the corresponding bin IDs (by default, the median value of the conditioning variable within the bin), and the targeted combinations of 
+\code{dame} returns a data frame with the estimates of the distribution-weighted average marginal effects, standard errors, confidence intervals,
+the corresponding bin IDs (by default, the median value of the conditioning variable within the bin), and the targeted combinations of
 \code{at} values if specified.
 }
 \description{
@@ -81,10 +82,19 @@ the corresponding bin IDs (by default, the median value of the conditioning vari
 \examples{
 ##poisson regression with 2 variables and an interaction between them
 #fit the regression first
-data <- data.frame(y = rpois(10000, 10), x2 = rpois(10000, 5), x1 = rpois(10000, 3))
-y <- glm(y ~ x1*x2, data = data, family = "poisson")
+data <- data.frame(y = rpois(10000, 10), x2 = rpois(10000, 5),
+x1 = rpois(10000, 3), w=c("a","b","c","d"))
+y <- glm(y ~ x1*x2 + w, data = data, family = "poisson")
 #compute DAME
 dame(model = y, x = "x1", over = "x2")
+\dontrun{
+## logit
+m <- glm(any_dispute ~ flows.ln*polity2 + gdp_pc, data=strikes, family="binomial")
+summary(m)
+## DAME with a robust (heteroscedasticity-consistent) variance-covariance matrix and 4 bins
+library(sandwich)
+dame(model=m, x="flows.ln", over="polity2", nbins=4, vcov=vcovHC(m))
+}
 }
 \references{
 Greene, William. 2012. \emph{Econometric Analysis, 7 ed.} Pearson Education Limited.

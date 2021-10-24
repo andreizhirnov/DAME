@@ -51,6 +51,12 @@
 #' ggExtra::ggMarginal(gt, type="histogram", data=data, x=z, y=x,
 #'    xparams=list(bins=nbins['z']), yparams=list(bins=nbins['x']))
 #' }
+#' \dontrun{
+#' ## logit
+#' m <- glm(any_dispute ~ flows.ln*polity2 + gdp_pc, data=strikes, family="binomial")
+#' summary(m)
+#' dame(model=m, x="flows.ln", over="polity2")
+#'}
 #' @export
 
 plot_me <- function(x, over, model = NULL, data = NULL,
@@ -91,8 +97,8 @@ plot_me <- function(x, over, model = NULL, data = NULL,
   if (length(tomeans)>0) obj[["at"]] <- c(obj[["at"]], lapply(tomeans, find.central, data=data, weights=weights))
 
   obj[["pct"]] <- 100*c(p/2, (1-p/2))
-
-
+  names(obj[["pct"]]) <- c("lb","ub")
+    
 # data for heatmaps
   grid.li <- list(
     x = seq(from = min(data[[x]], na.rm=TRUE), to = max(data[[x]], na.rm=TRUE), length.out = heatmap_dim[1]),
@@ -102,7 +108,7 @@ plot_me <- function(x, over, model = NULL, data = NULL,
   colnames(obj[["data"]]) <- c(x,over)
   plotdata.hm <- do.call("me",obj)
   plotdata.hm <- merge(grid, plotdata.hm, by.x=c("x","over"), by.y=c(x,over))
-  plotdata.hm[["sig"]] <- factor(rowSums(plotdata.hm[paste0("p", obj[["pct"]])]>0) %% 2, levels=c(0,1), labels=paste0(c("p<","p>"),p))
+  plotdata.hm[["sig"]] <- factor(rowSums(plotdata.hm[c("lb","ub")]>0) %% 2, levels=c(0,1), labels=paste0(c("p<","p>"),p))
 
 # data for scatterplots
   temp <- aggregate(list("nobs" = weights), by = list(x=data[[x]], over=data[[over]]), FUN = sum, na.action=NULL, na.rm=TRUE)

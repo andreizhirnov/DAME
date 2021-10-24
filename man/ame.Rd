@@ -42,23 +42,41 @@ the QR components of the design matrix if arguments \code{formula}, \code{data},
 
 \item{discrete_step}{The size of a discrete change in \code{x} used in computations (used only if \code{discrete=TRUE}).}
 
-\item{at}{an optional named list of values of independent variables. These variables will be set to these value before computations. 
+\item{at}{an optional named list of values of independent variables. These variables will be set to these value before computations.
 The remaining numeric variables (except \code{x} and \code{over}) will be set to their means. The remaining factor variables will be set
 to their modes.}
 
-\item{mc}{logical. If TRUE, the standard errors and confidence intervals will be computed using simulations. 
+\item{mc}{logical. If TRUE, the standard errors and confidence intervals will be computed using simulations.
 If FALSE (default), the delta method will be used.}
 
-\item{pct}{a numeric vector with the quantiles to be output with the DAME estimates. Default = \code{c(2.5,97.5)}.}
+\item{pct}{a named numeric vector with the sampling quantiles to be output with the DAME estimates (the names are used as the new variable names).
+Default = \code{c(lb=2.5,ub=97.5)}.}
 
 \item{iter}{the number of interations used in Monte-Carlo simulations. Default = 1,000.}
 
 \item{weights}{an optional vector of sampling weights.}
 }
 \value{
-\code{ame} returns a data frame with the estimates of the average marginal effects, standard errors, confidence intervals, 
+\code{ame} returns a data frame with the estimates of the average marginal effects, standard errors, confidence intervals,
 and the used values of the independent variables.
 }
 \description{
 \code{ame} computes the average marginal effects of variable \code{x} at the specified values of \code{at} variables.
+}
+\examples{
+##poisson regression with 2 variables and an interaction between them
+#fit the regression first
+data <- data.frame(y = rpois(10000, 10), x2 = rpois(10000, 5),
+x1 = rpois(10000, 3), w=c("a","b","c","d"))
+y <- glm(y ~ x1*x2 + w, data = data, family = "poisson")
+#compute AME
+ame(model = y, x = "x1")
+\dontrun{
+## logit
+m <- glm(any_dispute ~ flows.ln*polity2 + gdp_pc, data=strikes, family="binomial")
+summary(m)
+## AME with a robust (heteroscedasticity-consistent) variance-covariance matrix
+library(sandwich)
+ame(model=m, x="flows.ln", vcov=vcovHC(m))
+}
 }

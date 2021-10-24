@@ -110,9 +110,9 @@ find.central <- function(x,data,weights=NULL) {
 }
 
 make.bins <- function(x, nbins) {
-  qrs <- sort(unique(stats::quantile(x, seq(0, 1, by = 1/nbins))))
+  qrs <- sort(unique(stats::quantile(x, seq(0, 1, by = 1/nbins), na.rm=TRUE)))
   cuts <- as.numeric(cut(x, qrs, include.lowest = TRUE))
-  mp <- aggregate(x ~ cuts, FUN=stats::median)
+  mp <- aggregate(x ~ cuts, FUN=stats::median, na.action=NULL, na.rm=TRUE)
   mp[match(cuts,mp$cuts) ,"x"]
 }
 

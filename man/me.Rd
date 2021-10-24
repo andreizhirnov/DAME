@@ -52,7 +52,8 @@ to their modes.}
 \item{mc}{logical. If TRUE, the standard errors and confidence intervals will be computed using simulations. 
 If FALSE (default), the delta method will be used.}
 
-\item{pct}{a numeric vector with the quantiles to be output with the DAME estimates. Default = \code{c(2.5,97.5)}.}
+\item{pct}{a named numeric vector with the sampling quantiles to be output with the DAME estimates (the names are used as the new variable names).
+Default = \code{c(lb=2.5,ub=97.5)}.}
 
 \item{iter}{the number of interations used in Monte-Carlo simulations. Default = 1,000.}
 

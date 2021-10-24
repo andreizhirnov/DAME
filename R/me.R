@@ -13,13 +13,14 @@
 #' @param vcov the variance-covariance matrix to be used for computing standard errors (if not specified, it is extracted from the fitted model object).
 #' @param discrete A logical variable. If TRUE, the function will compute the effect of a discrete change in \code{x}. If FALSE, the function will compute the partial derivative of \code{x}.
 #' @param discrete_step The size of a discrete change in \code{x} used in computations (used only if \code{discrete=TRUE}).
-#' @param at an optional named list of values of independent variables. These variables will be set to these value before computations. 
+#' @param at an optional named list of values of independent variables. These variables will be set to these value before computations.
 #' The remaining numeric variables (except \code{x} and \code{over}) will be set to their means. The remaining factor variables will be set
 #' to their modes.
-#' @param mc logical. If TRUE, the standard errors and confidence intervals will be computed using simulations. 
+#' @param mc logical. If TRUE, the standard errors and confidence intervals will be computed using simulations.
 #' If FALSE (default), the delta method will be used.
-#' @param iter the number of interations used in Monte-Carlo simulations. Default = 1,000. 
-#' @param pct a numeric vector with the quantiles to be output with the DAME estimates. Default = \code{c(2.5,97.5)}. 
+#' @param iter the number of interations used in Monte-Carlo simulations. Default = 1,000.
+#' @param pct a named numeric vector with the sampling quantiles to be output with the DAME estimates (the names are used as the new variable names).
+#' Default = \code{c(lb=2.5,ub=97.5)}.
 #' @param weights an optional vector of sampling weights.
 #' @return \code{me} returns a data frame with the estimates of the marginal effects for each combination of the variables specified in \code{x} and \code{over},
 #' along with standard errors, confidence intervals, and the used values of the independent variables. All quantitative variable not included in
@@ -36,7 +37,7 @@
 me <- function(x, over = NULL, model = NULL, data = NULL, formula = NULL, link = NULL,
                coefficients = NULL, vcov = NULL,
                discrete = FALSE, discrete_step = 1, at = NULL, mc = FALSE,
-               pct = c(2.5, 97.5), iter = 1000, weights = NULL) {
+               pct = c(lb=2.5, ub=97.5), iter = 1000, weights = NULL) {
 
 
   # compute the derivatives
@@ -96,7 +97,11 @@ me <- function(x, over = NULL, model = NULL, data = NULL, formula = NULL, link =
 
   calc[["pct"]] <- pct
   check.required("pct", "numeric", list=calc)
-  names(calc[["pct"]]) <- paste0("p",pct)
+  if (is.null(names(calc[["pct"]]))) {
+	names(calc[["pct"]]) <- paste0("p",pct)
+	} else {
+      names(calc[["pct"]]) <- make.names(names(calc[["pct"]]))
+	}
   if (any(calc[["pct"]] > 100) || any(calc[["pct"]] <0)) stop("Error: 'pct' must be between 0 and 100", call. = FALSE)
 
   if (mc) {

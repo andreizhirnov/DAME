@@ -93,6 +93,12 @@ nbins <- sapply(data[c("x","z")], grDevices::nclass.FD)
 ggExtra::ggMarginal(gt, type="histogram", data=data, x=z, y=x,
    xparams=list(bins=nbins['z']), yparams=list(bins=nbins['x']))
 }
+\dontrun{
+## logit
+m <- glm(any_dispute ~ flows.ln*polity2 + gdp_pc, data=strikes, family="binomial")
+summary(m)
+dame(model=m, x="flows.ln", over="polity2")
+}
 }
 \references{
 Zhirnov, Andrei, Mert Moral, and Evgeny Sedashov (2021). ``Taking Distributions Seriously: On the Interpretation

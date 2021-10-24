@@ -14,18 +14,19 @@
 #' @param nbins the number of bins to be used for aggregating marginal effects; the default is 10 bins of equal size; ignored if \code{bin_id} is specified or
 #' \code{use_distinct_values} is TRUE.
 #' @param bin_id a numeric vector identifying the bins used for aggregating marginal effects (if not specified and \code{use_distinct_values=FALSE},
-#' the function uses \code{nbins} bins with roughly equal number of observations; if not specified and \code{use_distinct_values=TRUE}, the function 
+#' the function uses \code{nbins} bins with roughly equal number of observations; if not specified and \code{use_distinct_values=TRUE}, the function
 #' uses all unique values of the \code{over} variable).
 #' @param use_distinct_values logical; if TRUE, the function uses all unique values of the \code{over} variable; ignored if \code{bin_id} is specified.
 #' @param discrete logical. If TRUE, the function will compute the effect of a discrete change in \code{x}. If FALSE, the function will compute the partial derivative of \code{x}.
 #' @param discrete_step The size of a discrete change in \code{x} used in computations (used only if \code{discrete=TRUE}).
-#' @param at an optional named list of values of independent variables. These variables will be set to these value before computations. 
+#' @param at an optional named list of values of independent variables. These variables will be set to these value before computations.
 #' The remaining numeric variables (except \code{x} and \code{over}) will be set to their means. The remaining factor variables will be set
 #' to their modes.
-#' @param mc logical. If TRUE, the standard errors and confidence intervals will be computed using simulations. 
+#' @param mc logical. If TRUE, the standard errors and confidence intervals will be computed using simulations.
 #' If FALSE (default), the delta method will be used.
-#' @param iter the number of interations used in Monte-Carlo simulations. Default = 1,000. 
-#' @param pct a numeric vector with the quantiles to be output with the DAME estimates. Default = \code{c(2.5,97.5)}. 
+#' @param iter the number of interations used in Monte-Carlo simulations. Default = 1,000.
+#' @param pct a named numeric vector with the sampling quantiles to be output with the DAME estimates (the names are used as the new variable names).
+#' Default = \code{c(lb=2.5,ub=97.5)}.
 #' @param weights an optional vector of sampling weights.
 #' @author Function \code{dame} is an implementation of a procedure described in Zhirnov, Moral, and  Sedashov (2021).
 #' Standard errors are computed using either the delta method (Greene 2012) for more details) or Monte-Carlo simulations (King, Tomz, and Wittenberg 2000).
@@ -36,16 +37,25 @@
 #'
 #' Zhirnov, Andrei, Mert Moral, and Evgeny Sedashov (2021). ``Taking Distributions Seriously: On the Interpretation
 #' of the Estimates of Interactive Nonlinear Models.'' Working paper.
-#' @return \code{dame} returns a data frame with the estimates of the distribution-weighted average marginal effects, standard errors, confidence intervals, 
-#' the corresponding bin IDs (by default, the median value of the conditioning variable within the bin), and the targeted combinations of 
+#' @return \code{dame} returns a data frame with the estimates of the distribution-weighted average marginal effects, standard errors, confidence intervals,
+#' the corresponding bin IDs (by default, the median value of the conditioning variable within the bin), and the targeted combinations of
 #' \code{at} values if specified.
 #' @examples
 #' ##poisson regression with 2 variables and an interaction between them
 #' #fit the regression first
-#' data <- data.frame(y = rpois(10000, 10), x2 = rpois(10000, 5), x1 = rpois(10000, 3))
-#' y <- glm(y ~ x1*x2, data = data, family = "poisson")
+#' data <- data.frame(y = rpois(10000, 10), x2 = rpois(10000, 5),
+#' x1 = rpois(10000, 3), w=c("a","b","c","d"))
+#' y <- glm(y ~ x1*x2 + w, data = data, family = "poisson")
 #' #compute DAME
 #' dame(model = y, x = "x1", over = "x2")
+#' \dontrun{
+#' ## logit
+#' m <- glm(any_dispute ~ flows.ln*polity2 + gdp_pc, data=strikes, family="binomial")
+#' summary(m)
+#' ## DAME with a robust (heteroscedasticity-consistent) variance-covariance matrix and 4 bins
+#' library(sandwich)
+#' dame(model=m, x="flows.ln", over="polity2", nbins=4, vcov=vcovHC(m))
+#'}
 #' @export
 
 dame <- function(x, over = NULL, model = NULL,
@@ -53,7 +63,7 @@ dame <- function(x, over = NULL, model = NULL,
                  coefficients = NULL, vcov = NULL,
                  nbins = 10, bin_id = NULL, use_distinct_values = FALSE,
                  discrete = FALSE, discrete_step = 1, at = NULL, mc = FALSE,
-                 pct = c(2.5, 97.5), iter = 1000, weights = NULL) {
+                 pct = c(lb=2.5, ub=97.5), iter = 1000, weights = NULL) {
 
 # compute the derivatives
   link <- link[1]
@@ -119,7 +129,11 @@ dame <- function(x, over = NULL, model = NULL,
 
   calc[["pct"]] <- pct
   check.required("pct", "numeric", list=calc)
-  names(calc[["pct"]]) <- paste0("p",pct)
+  if (is.null(names(calc[["pct"]]))) {
+	names(calc[["pct"]]) <- paste0("p",pct)
+	} else {
+      names(calc[["pct"]]) <- make.names(names(calc[["pct"]]))
+	}
   if (any(calc[["pct"]] > 100) || any(calc[["pct"]] <0)) stop("Error: 'pct' must be between 0 and 100", call. = FALSE)
 
   if (mc) {
