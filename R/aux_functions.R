@@ -110,20 +110,20 @@ find.central <- function(x,data,weights=NULL) {
 }
 
 make.bins <- function(x, nbins) {
-  qrs <- sort(unique(quantile(x, seq(0, 1, by = 1/nbins))))
+  qrs <- sort(unique(stats::quantile(x, seq(0, 1, by = 1/nbins))))
   cuts <- as.numeric(cut(x, qrs, include.lowest = TRUE))
-  mp <- aggregate(x ~ cuts, FUN=median)
+  mp <- aggregate(x ~ cuts, FUN=stats::median)
   mp[match(cuts,mp$cuts) ,"x"]
 }
 
-simulated.me <- function(discrete, discrete_step=1, iter, coefficients, variance, data, x, formula, ym, dydm, wmat = NULL, pct, ...) {
+simulated.me <- function(discrete, discrete_step=1, iter, coefficients, vcov, data, x, formula, ym, dydm, wmat = NULL, pct, ...) {
   mf <- stats::model.frame(formula = formula, data = data)
   mmat <- stats::model.matrix(object = formula, data = mf)
   beta.names <- intersect(names(coefficients),colnames(mmat))
   if (length(beta.names) == 0) stop("Failed to link the supplied coefficients to the formula", call. = FALSE)
   mmat <- mmat[,beta.names,drop=FALSE]
   coef_vect <- matrix(coefficients[beta.names], nrow=1L)
-  var_covar <- variance[beta.names,beta.names]
+  var_covar <- vcov[beta.names,beta.names]
   coef_matrix <- MASS::mvrnorm(n = iter, mu = coef_vect, Sigma = var_covar, empirical = TRUE)
   if (discrete == TRUE) {
     data_offset <- data
@@ -169,14 +169,14 @@ simulated.me <- function(discrete, discrete_step=1, iter, coefficients, variance
   data.frame(est=as.vector(est),se=se,quantiles)
 }
 
-analytical.me <- function(discrete, discrete_step=1, coefficients, variance, data, x, formula, ym, dydm, d2ydm2, wmat = NULL, pct, ...) {
+analytical.me <- function(discrete, discrete_step=1, coefficients, vcov, data, x, formula, ym, dydm, d2ydm2, wmat = NULL, pct, ...) {
   mf <- stats::model.frame(formula = formula, data = data)
   mmat <- stats::model.matrix(object = formula, data = mf)
   beta.names <- intersect(names(coefficients),colnames(mmat))
   if (length(beta.names) == 0) stop("Failed to link the supplied coefficients to the formula", call. = FALSE)
   mmat <- mmat[,beta.names,drop=FALSE]
   coef_vect <- matrix(coefficients[beta.names], nrow=1L)
-  var_covar <- variance[beta.names,beta.names]
+  var_covar <- vcov[beta.names,beta.names]
   dmli <- make.dmdx(formula = formula, bnames = beta.names, xvarname=x)
   m_0 <- as.vector(mx(mmat = mmat, coefficients = coef_vect))
   if (discrete == TRUE) {

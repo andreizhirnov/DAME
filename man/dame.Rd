@@ -12,7 +12,7 @@ dame(
   formula = NULL,
   link = NULL,
   coefficients = NULL,
-  variance = NULL,
+  vcov = NULL,
   nbins = 10,
   bin_id = NULL,
   use_distinct_values = FALSE,
@@ -26,51 +26,57 @@ dame(
 )
 }
 \arguments{
-\item{x}{A character string representing the name of a variable. DAME will be computed for this variable.}
+\item{x}{a character string representing the name of the main variable of interest. Marginal effects will be computed for this variable.}
 
-\item{over}{A character string representing the name of a variable. DAME will be computed for each of the values of this variable.}
+\item{over}{a character string representing the name of the conditionning variable. DAME will be computed for the bins long the range of this variable.}
 
-\item{model}{Fitted model object. The package works best with GLM objects and will extract the formula, dataset, family, coefficients, and
+\item{model}{fitted model object. The package works best with GLM objects and will extract the formula, dataset, family, coefficients, and
 the QR components of the design matrix if arguments \code{formula}, \code{data}, \code{link}, \code{coefficients}, and/or
-\code{variance} are not explicitly specified.}
+\code{vcov} are not explicitly specified.}
 
-\item{data}{The dataset to be used to compute marginal effects. DAME provides most meaningful results if the original dataset is used for computing marginal effects.}
+\item{data}{the dataset to be used to compute marginal effects (if not specified, it is extracted from the fitted model object).}
 
-\item{formula}{The formula used in estimation (if not specified, it is extracted from the fitted model object).}
+\item{formula}{the formula used in estimation (if not specified, it is extracted from the fitted model object).}
 
-\item{link}{The link function used in estimation (if not specified, it is extracted from the fitted model object).}
+\item{link}{the name of the link function used in estimation (if not specified, it is extracted from the fitted model object).}
 
-\item{coefficients}{The named vector of coefficients produced during the estimation (if not specified, it is extracted from the fitted model object).}
+\item{coefficients}{the named vector of coefficients produced during the estimation (if not specified, it is extracted from the fitted model object).}
 
-\item{variance}{The variance-covariance matrix to be used for computing standard errors (if not specified, it is extracted from the fitted model object).}
+\item{vcov}{the variance-covariance matrix to be used for computing standard errors (if not specified, it is extracted from the fitted model object).}
 
 \item{nbins}{the number of bins to be used for aggregating marginal effects; the default is 10 bins of equal size; ignored if \code{bin_id} is specified or
 \code{use_distinct_values} is TRUE.}
 
-\item{bin_id}{a numeric vector identifying the bins used for aggregating marginal effects.}
+\item{bin_id}{a numeric vector identifying the bins used for aggregating marginal effects (if not specified and \code{use_distinct_values=FALSE},
+the function uses \code{nbins} bins with roughly equal number of observations; if not specified and \code{use_distinct_values=TRUE}, the function 
+uses all unique values of the \code{over} variable).}
 
 \item{use_distinct_values}{logical; if TRUE, the function uses all unique values of the \code{over} variable; ignored if \code{bin_id} is specified.}
 
-\item{discrete}{A logical variable. If TRUE, the function will compute the effect of a discrete change in \code{x}. If FALSE, the function will compute the partial derivative of \code{x}.}
+\item{discrete}{logical. If TRUE, the function will compute the effect of a discrete change in \code{x}. If FALSE, the function will compute the partial derivative of \code{x}.}
 
 \item{discrete_step}{The size of a discrete change in \code{x} used in computations (used only if \code{discrete=TRUE}).}
 
-\item{at}{A named list of values of independent variables. These variables will be set to these value before computations.}
+\item{at}{an optional named list of values of independent variables. These variables will be set to these value before computations. 
+The remaining numeric variables (except \code{x} and \code{over}) will be set to their means. The remaining factor variables will be set
+to their modes.}
 
-\item{mc}{A logical variable. If TRUE, the function will compute standard errors and sampling quantiles using Monte-Carlo simulations. If FALSE, the function will use the delta method.}
+\item{mc}{logical. If TRUE, the standard errors and confidence intervals will be computed using simulations. 
+If FALSE (default), the delta method will be used.}
 
-\item{pct}{A numeric vector with the sampling quantiles to be output with the DAME estimates. Default = \code{c(2.5,97.5)}.}
+\item{pct}{a numeric vector with the quantiles to be output with the DAME estimates. Default = \code{c(2.5,97.5)}.}
 
 \item{iter}{the number of interations used in Monte-Carlo simulations. Default = 1,000.}
 
 \item{weights}{an optional vector of sampling weights.}
 }
 \value{
-\code{dame} returns a data frame with the estimates of the distribution-weighted average marginal effects, standard errors, confidence intervals, the corresponding bin IDs (by default, the median value
-of the condiotionning variable within the bin), and the targeted combinations of \code{at} values if specified.
+\code{dame} returns a data frame with the estimates of the distribution-weighted average marginal effects, standard errors, confidence intervals, 
+the corresponding bin IDs (by default, the median value of the conditioning variable within the bin), and the targeted combinations of 
+\code{at} values if specified.
 }
 \description{
-\code{dame} computes the distribution-weighted average marginal effects (DAME) as described in Moral, Sedashov, and Zhirnov (2017).
+\code{dame} computes the distribution-weighted average marginal effects (DAME) as described in Zhirnov, Moral, and Sedashov (2021).
 }
 \examples{
 ##poisson regression with 2 variables and an interaction between them
@@ -84,9 +90,11 @@ dame(model = y, x = "x1", over = "x2")
 Greene, William. 2012. \emph{Econometric Analysis, 7 ed.} Pearson Education Limited.
 
 King, Garry, Michael Tomz, and Jason Wittenberg. 2000. ``Making the Most of Statistical Analyses: Improving Interpretation and Presentation.'' \emph{American Journal of Political Science} 44(2): 341-355.
-Moral, Mert, Evgeny Sedashov, and Andrei Zhirnov. (2017) ``Taking Distributions Seriously Interpreting the Effects of Constitutive Variables in Nonlinear Models with Interactions.'' Working paper.
+
+Zhirnov, Andrei, Mert Moral, and Evgeny Sedashov (2021). ``Taking Distributions Seriously: On the Interpretation
+of the Estimates of Interactive Nonlinear Models.'' Working paper.
 }
 \author{
-Function \code{dame} comes as a complimentary open-source implementation of procedures described in Moral, Sedashov, and Zhirnov (2017).
-Standard errors are computed using either delta method (Greene 2012) for more details) or Monte-Carlo simulations (King, Tomz, and Wittenberg 2000).
+Function \code{dame} is an implementation of a procedure described in Zhirnov, Moral, and  Sedashov (2021).
+Standard errors are computed using either the delta method (Greene 2012) for more details) or Monte-Carlo simulations (King, Tomz, and Wittenberg 2000).
 }

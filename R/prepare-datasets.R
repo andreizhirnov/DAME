@@ -1,4 +1,4 @@
-#' @importFrom stats aggregate na.omit complete.cases quantile median
+#' @importFrom stats aggregate
 
 makeframes.dame <- function(data, allvars, at=NULL, bin_id, weights) {
   at_dt <- expand.grid(as.list(at))
@@ -9,7 +9,7 @@ makeframes.dame <- function(data, allvars, at=NULL, bin_id, weights) {
     wmat <- diag(nrow(at_dt))
     return(list(data=data.compressed, grid=grid, wmat=wmat))
   }
-  usable <- complete.cases(data[setdiff(allvars,names(at))])
+  usable <- stats::complete.cases(data[setdiff(allvars,names(at))])
   varying <- subset(data, usable, select=setdiff(allvars,names(at)))
   colnames(varying) <- paste0("va.",colnames(varying))
   varying[["bin_id"]] <- bin_id[usable]
@@ -76,7 +76,7 @@ makeframes.dame <- function(data, allvars, at=NULL, bin_id, weights) {
 }
 
 makeframes.me <- function(data,tovary,at=NULL) {
-  grid <- na.omit(data[,tovary,drop=FALSE])
+  grid <- stats::na.omit(data[,tovary,drop=FALSE])
   if (length(at) > 0) grid <- merge(expand.grid(as.list(at)), grid, by = NULL)
   grid
 }

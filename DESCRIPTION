@@ -6,9 +6,10 @@ Authors@R: c(
     person("Mert", "Moral", email = "mmoral@sabanciuniv.edu", role = "aut"),
     person("Andrei", "Zhirnov", email = "A.Zhirnov@exeter.ac.uk", role = "aut"))
 Description: The package provides functions to compute marginal effects, distribution-weighted average marginal effects, as well as functions for easy-to-implement visualizations.
-Depends: R (>= 3.5.0), stats, methods, MASS
+Depends: R (>= 3.5.0)
+Imports: MASS, stats, methods
+Suggests: ggplot2
 License: GPL (==3)
 Encoding: UTF-8
 LazyData: true
-Suggests: ggplot2
 RoxygenNote: 7.1.1

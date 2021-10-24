@@ -11,7 +11,7 @@ mem(
   formula = NULL,
   link = NULL,
   coefficients = NULL,
-  variance = NULL,
+  vcov = NULL,
   discrete = FALSE,
   discrete_step = 1,
   at = NULL,
@@ -22,42 +22,43 @@ mem(
 )
 }
 \arguments{
-\item{x}{A character string representing the name of a variable. ME will be computed for this variable.}
+\item{x}{a character string representing the name of the main variable of interest. Marginal effects will be computed for this variable.}
 
-\item{model}{Fitted model object. The package works best with GLM objects and will extract the formula, dataset, family, coefficients, and
+\item{model}{fitted model object. The package works best with GLM objects and will extract the formula, dataset, family, coefficients, and
 the QR components of the design matrix if arguments \code{formula}, \code{data}, \code{link}, \code{coefficients}, and/or
-\code{variance} are not explicitly specified.}
+\code{vcov} are not explicitly specified.}
 
-\item{data}{The dataset to be used to compute marginal effects. DAME provides most meaningful results if the original dataset is used for computing marginal effects.}
+\item{data}{the dataset to be used to compute marginal effects (if not specified, it is extracted from the fitted model object).}
 
-\item{formula}{The formula used in estimation (if not specified, it is extracted from the fitted model object).}
+\item{formula}{the formula used in estimation (if not specified, it is extracted from the fitted model object).}
 
-\item{link}{The link function used in estimation (if not specified, it is extracted from the fitted model object).}
+\item{link}{the name of the link function used in estimation (if not specified, it is extracted from the fitted model object).}
 
-\item{coefficients}{The named vector of coefficients produced during the estimation (if not specified, it is extracted from the fitted model object).}
+\item{coefficients}{the named vector of coefficients produced during the estimation (if not specified, it is extracted from the fitted model object).}
 
-\item{variance}{The variance-covariance matrix to be used for computing standard errors (if not specified, it is extracted from the fitted model object).}
+\item{vcov}{the variance-covariance matrix to be used for computing standard errors (if not specified, it is extracted from the fitted model object).}
 
 \item{discrete}{A logical variable. If TRUE, the function will compute the effect of a discrete change in \code{x}. If FALSE, the function will compute the partial derivative of \code{x}.}
 
 \item{discrete_step}{The size of a discrete change in \code{x} used in computations (used only if \code{discrete=TRUE}).}
 
-\item{at}{A named list of values of independent variables. These variables will be set to these value before computations. All other quantitative variables (except \code{x} and \code{over}) will be set to their means. All other factor variables will be set to their modes.}
+\item{at}{an optional named list of values of independent variables. These variables will be set to these value before computations. 
+The remaining numeric variables (except \code{x} and \code{over}) will be set to their means. The remaining factor variables will be set
+to their modes.}
 
-\item{mc}{A logical variable. If TRUE, the function will compute standard errors and sampling quantiles using Monte-Carlo simulations. If FALSE, the function will use the delta method.}
+\item{mc}{logical. If TRUE, the standard errors and confidence intervals will be computed using simulations. 
+If FALSE (default), the delta method will be used.}
 
-\item{pct}{A numeric vector with the sampling quantiles to be output with the DAME estimates. Default = \code{c(2.5,97.5)}.}
+\item{pct}{a numeric vector with the quantiles to be output with the DAME estimates. Default = \code{c(2.5,97.5)}.}
 
-\item{iter}{Number of interations used in Monte-Carlo simulations. Default = 1,000.}
+\item{iter}{the number of interations used in Monte-Carlo simulations. Default = 1,000.}
 
 \item{weights}{an optional vector of sampling weights.}
 }
 \value{
-A list of the following:
-\itemize{
-\item\code{me} A data frame with ME estimates, standard errors, quantiles of the sampling distribution, and the values of the independent variables.
-\item\code{execute_time} Execution time
-}
+\code{mem} returns a data frame with the estimates of the marginal effects at means, along with standard errors, confidence intervals,
+and the used values of the independent variables. All quantitative variable not included in \code{at} are set to their means,
+ and all qualitative variables (except those listed in \code{at}) are converted to factors and set to their modes.
 }
 \description{
 \code{mem} computes the marginal effects of variable \code{x} at the specified values of \code{at} variables and the mean values of all the other variables (including \code{x}).

@@ -12,91 +12,92 @@ plot_me(
   link = NULL,
   formula = NULL,
   coefficients = NULL,
-  variance = NULL,
+  vcov = NULL,
   at = NULL,
   mc = FALSE,
   iter = 1000,
   heatmap_dim = c(100, 100),
-  nsteps = 5,
   smooth = FALSE,
+  nlevels = 4,
   gradient = c("#f2e6e7", "#f70429"),
   p = 0.05,
   weights = NULL
 )
 }
 \arguments{
-\item{x}{The independent variable whose effect is being assessed. This variable is mapped along the vertical axis.}
+\item{x}{a character string representing the name of the main variable of interest. Marginal effects will be computed for this variable.}
 
-\item{over}{The second independent variable. This variable is mapped along the horizontal axis.}
+\item{over}{a character string representing the name of the conditionning variable. DAME will be computed for the bins long the range of this variable.}
 
-\item{model}{Fitted model object. The package works best with GLM objects and will extract the formula, dataset, family, coefficients, and
+\item{model}{fitted model object. The package works best with GLM objects and will extract the formula, dataset, family, coefficients, and
 the QR components of the design matrix if arguments \code{formula}, \code{data}, \code{link}, \code{coefficients}, and/or
-\code{variance} are not explicitly specified.}
+\code{vcov} are not explicitly specified.}
 
-\item{data}{The dataframe used in estimation.}
+\item{data}{the dataset to be used to compute marginal effects (if not specified, it is extracted from the fitted model object).}
 
-\item{link}{The link function used in estimation (if not specified, it is extracted from the fitted model object).}
+\item{link}{the name of the link function used in estimation (if not specified, it is extracted from the fitted model object).}
 
-\item{formula}{The formula used in estimation (if not specified, it is extracted from the fitted model object).}
+\item{formula}{the formula used in estimation (if not specified, it is extracted from the fitted model object).}
 
-\item{coefficients}{The named vector of coefficients produced during the estimation (if not specified, it is extracted from the fitted model object).}
+\item{coefficients}{the named vector of coefficients produced during the estimation (if not specified, it is extracted from the fitted model object).}
 
-\item{variance}{The variance-covariance matrix to be used for computing standard errors (if not specified, it is extracted from the fitted model object).}
+\item{vcov}{the variance-covariance matrix to be used for computing standard errors (if not specified, it is extracted from the fitted model object).}
 
-\item{at}{A named list of the values for other indepedent variables. Unless listed, other continuous variables
-are fixed at their means, and all factor variables are set to their modes.}
+\item{at}{an optional named list of values of independent variables. These variables will be set to these value before computations. 
+The remaining numeric variables (except \code{x} and \code{over}) will be set to their means. The remaining factor variables will be set
+to their modes.}
 
-\item{mc}{A logical variable. If TRUE, the function will compute standard errors and sampling quantiles using Monte-Carlo simulations. If FALSE, the function will use the delta method.}
+\item{mc}{logical. If TRUE, the standard errors and confidence intervals will be computed using simulations. 
+If FALSE (default), the delta method will be used.}
 
-\item{iter}{Number of interations used in Monte-Carlo simulations. Default = 1,000.}
+\item{iter}{the number of interations used in Monte-Carlo simulations. Default = 1,000.}
 
-\item{heatmap_dim}{Numeric vector containin the number of rows and columns used for drawing the heatmap. Default = 100 each.}
+\item{heatmap_dim}{a numeric vector containing the number of rows and columns used for drawing the heatmap. Default = 100 each.}
 
-\item{gradient}{String vector representing color gradient for the contour plot. First element
-is the color of the lowest value, and second element is the color of the highest value.}
+\item{smooth}{logical. If FALSE, the values of marginal effects are broken down into bins. The number of bins is specified using \code{nlevels}.}
 
-\item{p}{Singificance level for the marginal effects. Default = 0.05.}
+\item{nlevels}{the number of bins used for displaying marginal effects on the heatmap. Default = 4.}
 
-\item{breaks_hor}{Numeric vector of breaks for the horizontal axis ("over" variable) \code{waiver()} by default.}
+\item{gradient}{a string vector representing the color gradient for the heatamp. The first element
+is the color assigned to the lowest value of the marginal effect if the marginal effects are predominantly positive, and second element is the color of the
+assigned to its highest value. If marginal effects are predominantly negative, the color assignments are swapped.}
 
-\item{breaks_ver}{Numeric vector of breaks for the vertical axis ("x" variable)  \code{waiver()} by default.}
+\item{p}{the singificance level for the marginal effects. Default = 0.05.}
 
-\item{breaks_hb}{Numeric vector specifying probability axis for the bottom histogram.
-\code{waiver()} by default.}
-
-\item{breaks_hl}{Numeric vector specifying probability axis for the left histogram.
-\code{waiver()} by default.}
-
-\item{theme_hl}{The theme for the left panel. Function \code{theme} from \code{ggplot2} package.}
-
-\item{theme_hb}{The theme for the bottom panel. Function \code{theme} from \code{ggplot2} package.}
-
-\item{theme_mp}{The theme for the main panel. Function \code{theme} from \code{ggplot2} package.}
+\item{weights}{an optional vector of sampling weights.}
 }
 \description{
-\code{plot_me} combines a heatmap of the marginal effects of a variable with the elements representing
-its joint distribution with another independent variable. The heatmaps is overlaid with markers whose size
-represents the number of observations. On the sides, we append histograms of the independent variables
-under consideration.
+\code{plot_me} produces a heatmap of the marginal effects of variable \code{x} over the combinations of \code{x} and \code{over} and
+adds a scatterplot representing the joint distribution these two variables in the given sample. The size of the markers represents the number of observations.
 }
 \details{
-\code{plot_me} provides a convenient way to interpret two-way interactions using
-a heatmap with the histograms of the independent variables on x and y axis. Procedure allows users to customize the
-plot using functions and layers from the \code{ggplot2} package. For instance, the look
-of contour plot and histograms is fully customizable, but the overall style (histograms on the
-left and on the bottom with contourplot in the center) is preserved for all plots.
+\code{plot_me} provides a convenient way to interpret two-way interactions using heatmaps.
+It returns a ggplot object, which allows users to customize the plot using functions and layers from the \code{ggplot2} package.
 }
 \examples{
 ##Poisson regression with 2 variables and interaction between them
+\dontrun{
 data <- data.frame(y = rpois(10000, 10), x2 = rpois(10000, 5), x1 = rpois(10000, 3))
 y <- glm(y ~ x1 + x2 + x1*x2, data = data, family = "poisson")
+## A heatmap with 4 areas (the default)
+library(ggplot2)
 plot_me(model = y, data = data, x = "x1", over = "x2")
+## A heatmap with smooth transition of colors
+plot_me(model = y, data = data, x = "x1", over = "x2", smooth=TRUE)
+## A heatmap with histograms at the edges
+library(ggExtra)
+gt <- g + theme(legend.position="left")
+ggExtra::ggMarginal(gt, type="histogram", data=data, x=z, y=x)
+## if more control over the histograms needed:
+nbins <- sapply(data[c("x","z")], grDevices::nclass.FD)
+ggExtra::ggMarginal(gt, type="histogram", data=data, x=z, y=x,
+   xparams=list(bins=nbins['z']), yparams=list(bins=nbins['x']))
+}
 }
 \references{
-Moral, Mert, Evgeny Sedashov, and Andrei Zhirnov. (2017) ``Taking Distributions Seriously
-Interpreting the Effects of Constitutive Variables in Nonlinear Models with Interactions.'' Working paper.
+Zhirnov, Andrei, Mert Moral, and Evgeny Sedashov (2021). ``Taking Distributions Seriously: On the Interpretation
+of the Estimates of Interactive Nonlinear Models.'' Working paper.
 }
 \author{
-\code{plot_me} visualizes ME procedure described in Moral, Sedashov, and Zhirnov (2017)
-using the tools from \code{ggplot2} package.
+\code{plot_me} visualizes ME procedure described in Zhirnov, Moral, and Sedashov (2021) using the tools from \code{ggplot2} package.
 }
