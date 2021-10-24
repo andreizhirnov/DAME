@@ -1,4 +1,4 @@
-#' @title DAME function
+#' @title Distribution-weighted average marginal effect
 #' @description
 #' \code{dame} computes the distribution-weighted average marginal effects (DAME) as described in Zhirnov, Moral, and Sedashov (2021).
 #' @param x a character string representing the name of the main variable of interest. Marginal effects will be computed for this variable.

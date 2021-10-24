@@ -2,7 +2,7 @@
 % Please edit documentation in R/ame.R
 \name{ame}
 \alias{ame}
-\title{AME function}
+\title{Average marginal effect}
 \usage{
 ame(
   x,
@@ -16,7 +16,7 @@ ame(
   discrete_step = 1,
   at = NULL,
   mc = FALSE,
-  pct = c(2.5, 97.5),
+  pct = c(lb = 2.5, ub = 97.5),
   iter = 1000,
   weights = NULL
 )
@@ -61,7 +61,7 @@ Default = \code{c(lb=2.5,ub=97.5)}.}
 and the used values of the independent variables.
 }
 \description{
-\code{ame} computes the average marginal effects of variable \code{x} at the specified values of \code{at} variables.
+\code{ame} computes the average marginal effects of variable \code{x}.
 }
 \examples{
 ##poisson regression with 2 variables and an interaction between them

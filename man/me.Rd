@@ -2,7 +2,7 @@
 % Please edit documentation in R/me.R
 \name{me}
 \alias{me}
-\title{ME function}
+\title{Marginal effects at unique combinations of independent variables}
 \usage{
 me(
   x,
@@ -17,7 +17,7 @@ me(
   discrete_step = 1,
   at = NULL,
   mc = FALSE,
-  pct = c(2.5, 97.5),
+  pct = c(lb = 2.5, ub = 97.5),
   iter = 1000,
   weights = NULL
 )
@@ -45,11 +45,11 @@ the QR components of the design matrix if arguments \code{formula}, \code{data},
 
 \item{discrete_step}{The size of a discrete change in \code{x} used in computations (used only if \code{discrete=TRUE}).}
 
-\item{at}{an optional named list of values of independent variables. These variables will be set to these value before computations. 
+\item{at}{an optional named list of values of independent variables. These variables will be set to these value before computations.
 The remaining numeric variables (except \code{x} and \code{over}) will be set to their means. The remaining factor variables will be set
 to their modes.}
 
-\item{mc}{logical. If TRUE, the standard errors and confidence intervals will be computed using simulations. 
+\item{mc}{logical. If TRUE, the standard errors and confidence intervals will be computed using simulations.
 If FALSE (default), the delta method will be used.}
 
 \item{pct}{a named numeric vector with the sampling quantiles to be output with the DAME estimates (the names are used as the new variable names).

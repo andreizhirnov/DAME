@@ -6,15 +6,15 @@ This package provides tools that implement and visualize the procedures describe
 
 Exported functions:
 
-*dame()*
+*dame()* computes the distribution-weighted average marginal effects (DAME) as described in Zhirnov, Moral, and Sedashov (2021).
 
-*me()*
+*me()* computes the marginal effects of a variable at the unique combinations of the values of listed variables.
 
-*mem()*
+*mem()* computes the marginal effects of a variable at the specified values of select independent variables and the means/modes of all the other variables.
 
-*ame()*
+*ame()* computes the average marginal effects of a variable.
 
-*plot_me()*
+*plot_me()* produces a heatmap of the marginal effects of a variable plotted against the combinations of the values of two variables and adds a scatterplot representing the joint distribution these two variables in the given sample.
 
 Please Cite:  Moral, Mert, Evgeny Sedashov, and Andrei Zhirnov. (2017) "Taking Distributions Seriously
 Interpreting the Effects of Constitutive Variables in Nonlinear Models with Interactions." Working paper.

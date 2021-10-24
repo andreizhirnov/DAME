@@ -1,6 +1,6 @@
-#' @title AME function
+#' @title Average marginal effect
 #' @description
-#' \code{ame} computes the average marginal effects of variable \code{x} at the specified values of \code{at} variables.
+#' \code{ame} computes the average marginal effects of variable \code{x}.
 #' @param x a character string representing the name of the main variable of interest. Marginal effects will be computed for this variable.
 #' @param model fitted model object. The package works best with GLM objects and will extract the formula, dataset, family, coefficients, and
 #' the QR components of the design matrix if arguments \code{formula}, \code{data}, \code{link}, \code{coefficients}, and/or

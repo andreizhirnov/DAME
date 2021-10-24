@@ -1,4 +1,4 @@
-#' @title MEM function
+#' @title Marginal effects at means
 #' @description
 #' \code{mem} computes the marginal effects of variable \code{x} at the specified values of \code{at} variables and the mean values of all the other variables (including \code{x}).
 #' @param x a character string representing the name of the main variable of interest. Marginal effects will be computed for this variable.
@@ -37,7 +37,8 @@
 #' ## logit
 #' m <- glm(any_dispute ~ flows.ln*polity2 + gdp_pc, data=strikes, family="binomial")
 #' summary(m)
-#' ## marginal effects at means with a robust (heteroscedasticity-consistent) variance-covariance matrix
+#' ## marginal effects at means with a robust (heteroscedasticity-consistent)
+#' variance-covariance matrix
 #' library(sandwich)
 #' mem(model=m, x="flows.ln", vcov=vcovHC(m), at=list(polity2=c(-10,0,10)))
 #' }

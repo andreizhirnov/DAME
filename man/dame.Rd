@@ -2,7 +2,7 @@
 % Please edit documentation in R/dame.R
 \name{dame}
 \alias{dame}
-\title{DAME function}
+\title{Distribution-weighted average marginal effect}
 \usage{
 dame(
   x,
@@ -20,7 +20,7 @@ dame(
   discrete_step = 1,
   at = NULL,
   mc = FALSE,
-  pct = c(2.5, 97.5),
+  pct = c(lb = 2.5, ub = 97.5),
   iter = 1000,
   weights = NULL
 )

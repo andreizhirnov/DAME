@@ -1,6 +1,6 @@
 #' @title Vizualizing Marginal Effects
 #' @description
-#' \code{plot_me} produces a heatmap of the marginal effects of variable \code{x} over the combinations of \code{x} and \code{over} and
+#' \code{plot_me} produces a heatmap of the marginal effects of variable \code{x} plotted against the combinations of \code{x} and \code{over} and
 #' adds a scatterplot representing the joint distribution these two variables in the given sample. The size of the markers represents the number of observations.
 #' @param x a character string representing the name of the main variable of interest. Marginal effects will be computed for this variable.
 #' @param over a character string representing the name of the conditionning variable. DAME will be computed for the bins long the range of this variable.
@@ -12,10 +12,10 @@
 #' @param link the name of the link function used in estimation (if not specified, it is extracted from the fitted model object).
 #' @param coefficients the named vector of coefficients produced during the estimation (if not specified, it is extracted from the fitted model object).
 #' @param vcov the variance-covariance matrix to be used for computing standard errors (if not specified, it is extracted from the fitted model object).
-#' @param at an optional named list of values of independent variables. These variables will be set to these value before computations. 
+#' @param at an optional named list of values of independent variables. These variables will be set to these value before computations.
 #' The remaining numeric variables (except \code{x} and \code{over}) will be set to their means. The remaining factor variables will be set
 #' to their modes.
-#' @param mc logical. If TRUE, the standard errors and confidence intervals will be computed using simulations. 
+#' @param mc logical. If TRUE, the standard errors and confidence intervals will be computed using simulations.
 #' If FALSE (default), the delta method will be used.
 #' @param iter the number of interations used in Monte-Carlo simulations. Default = 1,000.
 #' @param weights an optional vector of sampling weights.
@@ -98,7 +98,7 @@ plot_me <- function(x, over, model = NULL, data = NULL,
 
   obj[["pct"]] <- 100*c(p/2, (1-p/2))
   names(obj[["pct"]]) <- c("lb","ub")
-    
+
 # data for heatmaps
   grid.li <- list(
     x = seq(from = min(data[[x]], na.rm=TRUE), to = max(data[[x]], na.rm=TRUE), length.out = heatmap_dim[1]),

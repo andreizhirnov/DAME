@@ -1,4 +1,4 @@
-#' @title ME function
+#' @title Marginal effects at unique combinations of independent variables
 #' @description
 #' \code{me} computes the marginal effects of variable \code{x} for the distinct values of variables \code{x} and \code{over}.
 #' @param x a character string representing the name of the main variable of interest. Marginal effects will be computed for this variable.

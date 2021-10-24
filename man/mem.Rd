@@ -2,7 +2,7 @@
 % Please edit documentation in R/mem.R
 \name{mem}
 \alias{mem}
-\title{MEM function}
+\title{Marginal effects at means}
 \usage{
 mem(
   x,
@@ -16,7 +16,7 @@ mem(
   discrete_step = 1,
   at = NULL,
   mc = FALSE,
-  pct = c(2.5, 97.5),
+  pct = c(lb = 2.5, ub = 97.5),
   iter = 1000,
   weights = NULL
 )
@@ -71,13 +71,15 @@ data <- data.frame(y = rpois(10000, 10), x2 = rpois(10000, 5),
 x1 = rpois(10000, 3), w=c("a","b","c","d"))
 y <- glm(y ~ x1*x2 + w, data = data, family = "poisson")
 #compute marginal effects at means
-mem(model = y, x = "x1", at=list(x2=seq(min(data$x2), max(data$x2), length.out=5)))
+mem(model = y, x = "x1",
+     at=list(x2=seq(min(data$x2), max(data$x2), length.out=5)))
 \dontrun{
 ## logit
 m <- glm(any_dispute ~ flows.ln*polity2 + gdp_pc, data=strikes, family="binomial")
 summary(m)
-## marginal effects at means with a robust (heteroscedasticity-consistent) variance-covariance matrix
+## marginal effects at means with a robust (heteroscedasticity-consistent)
+variance-covariance matrix
 library(sandwich)
-mem(model=m, x="flows.ln", over="polity2", vcov=vcovHC(m), at=list(polity2=c(-10,0,10)))
+mem(model=m, x="flows.ln", vcov=vcovHC(m), at=list(polity2=c(-10,0,10)))
 }
 }

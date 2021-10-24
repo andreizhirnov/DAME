@@ -43,11 +43,11 @@ the QR components of the design matrix if arguments \code{formula}, \code{data},
 
 \item{vcov}{the variance-covariance matrix to be used for computing standard errors (if not specified, it is extracted from the fitted model object).}
 
-\item{at}{an optional named list of values of independent variables. These variables will be set to these value before computations. 
+\item{at}{an optional named list of values of independent variables. These variables will be set to these value before computations.
 The remaining numeric variables (except \code{x} and \code{over}) will be set to their means. The remaining factor variables will be set
 to their modes.}
 
-\item{mc}{logical. If TRUE, the standard errors and confidence intervals will be computed using simulations. 
+\item{mc}{logical. If TRUE, the standard errors and confidence intervals will be computed using simulations.
 If FALSE (default), the delta method will be used.}
 
 \item{iter}{the number of interations used in Monte-Carlo simulations. Default = 1,000.}
@@ -67,7 +67,7 @@ assigned to its highest value. If marginal effects are predominantly negative, t
 \item{weights}{an optional vector of sampling weights.}
 }
 \description{
-\code{plot_me} produces a heatmap of the marginal effects of variable \code{x} over the combinations of \code{x} and \code{over} and
+\code{plot_me} produces a heatmap of the marginal effects of variable \code{x} plotted against the combinations of \code{x} and \code{over} and
 adds a scatterplot representing the joint distribution these two variables in the given sample. The size of the markers represents the number of observations.
 }
 \details{
