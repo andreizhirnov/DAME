@@ -16,5 +16,4 @@ Exported functions:
 
 *plot_me()* produces a heatmap of the marginal effects of a variable plotted against the combinations of the values of two variables and adds a scatterplot representing the joint distribution these two variables in the given sample.
 
-Please Cite:  Moral, Mert, Evgeny Sedashov, and Andrei Zhirnov. (2017) "Taking Distributions Seriously
-Interpreting the Effects of Constitutive Variables in Nonlinear Models with Interactions." Working paper.
+Please Cite:  Zhirnov, Andrei, Mert Moral, and Evgeny Sedashov. 2021. "Taking Distributions Seriously: On the Interpretation of the Estimates of Interactive Nonlinear Models." Working paper.
