@@ -1,5 +1,3 @@
-# data-conscious-marginal-effects
-
 ## "DAME" package: Tools for Data-Conscious Interpretation of Nonlinear Interactive Models in R
 
 Exported functions:
