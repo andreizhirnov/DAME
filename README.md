@@ -1,5 +1,16 @@
 ## "DAME" package: Tools for Data-Conscious Interpretation of Nonlinear Interactive Models in R
 
+To install:
+```
+library(devtools)
+install_github("andreizhirnov/DAME")
+```
+
+To load:
+```
+library(DAME)
+```
+
 Exported functions:
 
 *dame()* computes the distribution-weighted average marginal effects (DAME) as described in Zhirnov, Moral, and Sedashov (2021).
