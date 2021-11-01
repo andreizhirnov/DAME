@@ -75,6 +75,22 @@ mem <- function(x, model = NULL, data = NULL, formula = NULL, link = NULL,
   names(tomeans) <- tomeans
 
   at <- as.list(at)
+  if (length(at)>0) {
+    for (v in names(at)) {
+      if (is.character(at[[v]]) & !is.factor(at[[v]])) {
+        xle <-  model[["xlevels"]][[v]]
+        if (is.null(xle)) xle <- sort(unique(data[[v]]))
+        if (is.null(xle)) {
+          stop("Please convert the character variables in the 'at' list into factors", call. = FALSE)
+        }
+        if (any(!at[[v]] %in% xle)) {
+          stop(paste0("Could not find all listed values of ",v," in the model"), call. = FALSE)
+        }
+        at[[v]] <- factor(at[[v]], levels=xle)
+      }
+    }
+  }
+
   if (length(tomeans)>0) at <- c(at, lapply(tomeans, find.central, data=data, weights=weights))
 
   calc[["data"]] <- makeframes.mem(at)

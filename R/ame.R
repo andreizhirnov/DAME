@@ -78,7 +78,22 @@ ame <- function(x, model = NULL, data = NULL, formula = NULL, link = NULL,
   outside.data <- setdiff(calc[["x"]],names(obj[["data"]]))
   if (length(outside.data)>0) stop(paste("Failed to find the following variables in the dataset:",outside.data,sep="\n"), call. = FALSE)
 
-  if (length(at)>0) obj[["at"]] <- as.list(at)
+  if (length(at)>0) {
+    obj[["at"]] <- as.list(at)
+    for (v in names(obj[["at"]])) {
+      if (is.character(obj[["at"]][[v]]) & !is.factor(obj[["at"]][[v]])) {
+        xle <-  model[["xlevels"]][[v]]
+        if (is.null(xle)) xle <- sort(unique(obj[["data"]][[v]]))
+        if (is.null(xle)) {
+          stop("Please convert the character variables in the 'at' list into factors", call. = FALSE)
+        }
+        if (any(!obj[["at"]][[v]] %in% xle)) {
+          stop(paste0("Could not find all listed values of ",v," in the model"), call. = FALSE)
+        }
+        obj[["at"]][[v]] <- factor(obj[["at"]][[v]], levels=xle)
+      }
+    }
+  }
 
   obj[["weights"]] <- eval(weights)
   if (!is.null(obj[["weights"]]) && !is.numeric(obj[["weights"]])) stop("'weights' must be a numeric vector", call. = FALSE)

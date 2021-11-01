@@ -94,6 +94,21 @@ plot_me <- function(x, over, model = NULL, data = NULL,
   names(tomeans) <- tomeans
 
   obj[["at"]] <- as.list(at)
+  if (length(at)>0) {
+    for (v in names(obj[["at"]])) {
+      if (is.character(obj[["at"]][[v]]) & !is.factor(obj[["at"]][[v]])) {
+        xle <-  model[["xlevels"]][[v]]
+        if (is.null(xle)) xle <- sort(unique(data[[v]]))
+        if (is.null(xle)) {
+          stop("Please convert the character variables in the 'at' list into factors", call. = FALSE)
+        }
+        if (any(!obj[["at"]][[v]] %in% xle)) {
+          stop(paste0("Could not find all listed values of ",v," in the model"), call. = FALSE)
+        }
+        obj[["at"]][[v]] <- factor(obj[["at"]][[v]], levels=xle)
+      }
+    }
+  }
   if (length(tomeans)>0) obj[["at"]] <- c(obj[["at"]], lapply(tomeans, find.central, data=data, weights=weights))
 
   obj[["pct"]] <- 100*c(p/2, (1-p/2))
