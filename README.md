@@ -1,8 +1,15 @@
-# data-conscious-marginal-effects
-
 ## "DAME" package: Tools for Data-Conscious Interpretation of Nonlinear Interactive Models in R
 
-This package provides tools that implement and visualize the procedures described in Moral, Sedashov and Zhirnov (2017).
+To install:
+```
+library(devtools)
+install_github("andreizhirnov/DAME")
+```
+
+To load:
+```
+library(DAME)
+```
 
 Exported functions:
 
@@ -16,5 +23,4 @@ Exported functions:
 
 *plot_me()* produces a heatmap of the marginal effects of a variable plotted against the combinations of the values of two variables and adds a scatterplot representing the joint distribution these two variables in the given sample.
 
-Please Cite:  Zhirnov, Andrei, Mert Moral, and Evgeny Sedashov. 2021. "Taking Distributions Seriously
-Interpreting the Effects of Constitutive Variables in Nonlinear Models with Interactions." Working paper.
+Please cite:  Zhirnov, Andrei, Mert Moral, and Evgeny Sedashov. 2021. "Taking Distributions Seriously: On the Interpretation of the Estimates of Interactive Nonlinear Models." Working paper.
