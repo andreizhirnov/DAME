@@ -145,7 +145,7 @@ plot_me <- function(x, over, model = NULL, data = NULL,
 
 # plot
   nlevels <- round(nlevels,0)
-  if (abs(min(plotdata$est)) > max(plotdata$est)) gradient <- gradient[c(2,1)]
+  if (abs(min(plotdata$est, na.rm=TRUE)) > max(plotdata$est, na.rm=TRUE)) gradient <- gradient[c(2,1)]
   if (!smooth && nlevels >1) {
     shading <- ggplot2::scale_fill_steps(low = gradient[1], high = gradient[2], n.breaks=nlevels[1])
   } else {

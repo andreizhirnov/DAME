@@ -61,8 +61,12 @@ clean.calls <- function(x) {
   }
 }
 
-mx <- function(mmat, coefficients) {
-  coefficients %*% t(mmat)
+mx <- function(mmat, coefficients, offset) {
+  if (length(offset) == nrow(mmat)) {
+    sweep(coefficients %*% t(mmat),2,-offset)
+  } else {
+    coefficients %*% t(mmat)
+  }
 }
 
 make.dmdx <- function(formula, bnames, xvarname) {
@@ -118,12 +122,13 @@ make.bins <- function(x, nbins) {
 
 simulated.me <- function(discrete, discrete_step=1, iter, coefficients, vcov, data, x, formula, ym, dydm, wmat = NULL, pct, ...) {
   mf <- stats::model.frame(formula = formula, data = data)
+  offset <- stats::model.offset(mf)
   mmat <- stats::model.matrix(object = formula, data = mf)
   beta.names <- intersect(names(coefficients),colnames(mmat))
   if (length(beta.names) == 0) stop("Failed to link the supplied coefficients to the formula", call. = FALSE)
   mmat <- mmat[,beta.names,drop=FALSE]
   coef_vect <- matrix(coefficients[beta.names], nrow=1L)
-  var_covar <- vcov[beta.names,beta.names]
+  var_covar <- as.matrix(vcov)[beta.names,beta.names]
   coef_matrix <- MASS::mvrnorm(n = iter, mu = coef_vect, Sigma = var_covar, empirical = TRUE)
   if (discrete == TRUE) {
     data_offset <- data
@@ -131,30 +136,30 @@ simulated.me <- function(discrete, discrete_step=1, iter, coefficients, vcov, da
     mf_offset <- stats::model.frame(formula = formula, data = data_offset)
     mmat_offset <- stats::model.matrix(object = formula, data = mf_offset)
     mmat_offset <- mmat_offset[,beta.names]
-    bulk <- try(ym(mx(mmat = mmat_offset, coefficients = coef_matrix)) - ym(mx(mmat = mmat, coefficients = coef_matrix)), silent=TRUE)
+    bulk <- try(ym(mx(mmat = mmat_offset, coefficients = coef_matrix, offset = offset)) - ym(mx(mmat = mmat, coefficients = coef_matrix, offset = offset)), silent=TRUE)
     if (inherits(bulk,'try-error') & nrow(mmat) < iter) {
       bulk <- matrix(NA,nrow=iter,ncol=nrow(mmat))
       for (i in 1L:nrow(mmat)) {
-        bulk[,i] <- ym(mx(mmat = mmat_offset[i,,drop=FALSE], coefficients = coef_matrix)) - ym(mx(mmat = mmat[i,,drop=FALSE], coefficients = coef_matrix))
+        bulk[,i] <- ym(mx(mmat = mmat_offset[i,,drop=FALSE], coefficients = coef_matrix, offset = offset)) - ym(mx(mmat = mmat[i,,drop=FALSE], coefficients = coef_matrix, offset = offset))
       }
     } else {
       bulk <- matrix(NA,nrow=iter,ncol=nrow(mmat))
       for (i in 1L:iter) {
-        bulk[i,] <- ym(mx(mmat = mmat_offset, coefficients = coef_matrix[i,,drop=FALSE])) - ym(mx(mmat = mmat, coefficients = coef_matrix[i,,drop=FALSE]))
+        bulk[i,] <- ym(mx(mmat = mmat_offset, coefficients = coef_matrix[i,,drop=FALSE], offset = offset)) - ym(mx(mmat = mmat, coefficients = coef_matrix[i,,drop=FALSE], offset = offset))
       }
     }
   } else {
     dmli <- make.dmdx(formula = formula, bnames = beta.names, xvarname=x)
-      bulk <- try(dydm(mx(mmat = mmat, coefficients = coef_matrix)) * dmli$dmdx(mmat = mmat, data=data, coefficients = coef_matrix), silent=TRUE)
+      bulk <- try(dydm(mx(mmat = mmat, coefficients = coef_matrix, offset = offset)) * dmli$dmdx(mmat = mmat, data=data, coefficients = coef_matrix, offset = offset), silent=TRUE)
       if (inherits(bulk,'try-error') & nrow(mmat) < iter) {
       bulk <- matrix(NA,nrow=iter,ncol=nrow(mmat))
       for (i in 1L:nrow(mmat)) {
-        bulk[,i] <- dydm(mx(mmat = mmat[i,,drop=FALSE], coefficients = coef_matrix)) * dmli$dmdx(mmat = mmat[i,,drop=FALSE], data=data[i,,drop=FALSE], coefficients = coef_matrix)
+        bulk[,i] <- dydm(mx(mmat = mmat[i,,drop=FALSE], coefficients = coef_matrix, offset = offset)) * dmli$dmdx(mmat = mmat[i,,drop=FALSE], data=data[i,,drop=FALSE], coefficients = coef_matrix, offset = offset)
       }
       } else if (inherits(bulk,'try-error')) {
       bulk <- matrix(NA,nrow=iter,ncol=nrow(mmat))
       for (i in 1L:iter) {
-        bulk[i,] <- dydm(mx(mmat = mmat, coefficients = coef_matrix[i,,drop=FALSE])) * dmli$dmdx(mmat = mmat, data=data, coefficients = coef_matrix[i,,drop=FALSE])
+        bulk[i,] <- dydm(mx(mmat = mmat, coefficients = coef_matrix[i,,drop=FALSE], offset = offset)) * dmli$dmdx(mmat = mmat, data=data, coefficients = coef_matrix[i,,drop=FALSE], offset = offset)
       }
     }
   }
@@ -171,21 +176,22 @@ simulated.me <- function(discrete, discrete_step=1, iter, coefficients, vcov, da
 
 analytical.me <- function(discrete, discrete_step=1, coefficients, vcov, data, x, formula, ym, dydm, d2ydm2, wmat = NULL, pct, ...) {
   mf <- stats::model.frame(formula = formula, data = data)
+  offset <- stats::model.offset(mf)
   mmat <- stats::model.matrix(object = formula, data = mf)
   beta.names <- intersect(names(coefficients),colnames(mmat))
   if (length(beta.names) == 0) stop("Failed to link the supplied coefficients to the formula", call. = FALSE)
   mmat <- mmat[,beta.names,drop=FALSE]
   coef_vect <- matrix(coefficients[beta.names], nrow=1L)
-  var_covar <- vcov[beta.names,beta.names]
+  var_covar <- as.matrix(vcov)[beta.names,beta.names]
   dmli <- make.dmdx(formula = formula, bnames = beta.names, xvarname=x)
-  m_0 <- as.vector(mx(mmat = mmat, coefficients = coef_vect))
+  m_0 <- as.vector(mx(mmat = mmat, coefficients = coef_vect, offset = offset))
   if (discrete == TRUE) {
     data_offset <- data
     data_offset[[x]] <- data_offset[[x]] + discrete_step
     mf_offset <- stats::model.frame(formula = formula, data = data_offset)
     mmat_offset <- stats::model.matrix(object = formula, data = mf_offset)
     mmat_offset <- mmat_offset[,beta.names,drop=FALSE]
-    m_1 <- as.vector(mx(mmat = mmat_offset, coefficients = coef_vect))
+    m_1 <- as.vector(mx(mmat = mmat_offset, coefficients = coef_vect, offset = offset))
     est <- ym(m_1) - ym(m_0)
     L <- dydm(m_1)*dmli$dmdb(mmat = mmat_offset, data=data_offset) - dydm(m_0)*dmli$dmdb(mmat = mmat, data=data)
     } else {
