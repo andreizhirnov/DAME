@@ -1,4 +1,4 @@
-#' @title Vizualizing Marginal Effects
+#' @title Visualizing Marginal Effects
 #' @description
 #' \code{plot_me} produces a heatmap of the marginal effects of variable \code{x} plotted against the combinations of \code{x} and \code{over} and
 #' adds a scatterplot representing the joint distribution these two variables in the given sample. The size of the markers represents the number of observations.
