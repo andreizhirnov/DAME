@@ -12,6 +12,8 @@
 #' @param link the name of the link function used in estimation (if not specified, it is extracted from the fitted model object).
 #' @param coefficients the named vector of coefficients produced during the estimation (if not specified, it is extracted from the fitted model object).
 #' @param vcov the variance-covariance matrix to be used for computing standard errors (if not specified, it is extracted from the fitted model object).
+#' @param discrete logical. If TRUE, the function will compute the effect of a discrete change in \code{x}. If FALSE, the function will compute the partial derivative of \code{x}.
+#' @param discrete_step The size of a discrete change in \code{x} used in computations (used only if \code{discrete=TRUE}).
 #' @param at an optional named list of values of independent variables. These variables will be set to these value before computations.
 #' The remaining numeric variables (except \code{x} and \code{over}) will be set to their means. The remaining factor variables will be set
 #' to their modes.
@@ -61,6 +63,7 @@
 
 plot_me <- function(x, over, model = NULL, data = NULL,
                     link = NULL, formula = NULL, coefficients = NULL, vcov = NULL,
+                    discrete = FALSE, discrete_step = 1,
                     at = NULL, mc = FALSE, iter = 1000,
                     heatmap_dim = c(100,100), smooth=FALSE, nlevels=4, gradient=c("#f2e6e7", "#f70429"),
                     p = 0.05, weights = NULL) {
@@ -113,6 +116,10 @@ plot_me <- function(x, over, model = NULL, data = NULL,
 
   obj[["pct"]] <- 100*c(p/2, (1-p/2))
   names(obj[["pct"]]) <- c("lb","ub")
+  obj[["discrete"]] <- discrete[1L]
+  if (discrete) {
+    obj[["discrete_step"]] <- discrete_step[1L]
+  }
 
 # data for heatmaps
   grid.li <- list(

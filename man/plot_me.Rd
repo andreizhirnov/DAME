@@ -13,6 +13,8 @@ plot_me(
   formula = NULL,
   coefficients = NULL,
   vcov = NULL,
+  discrete = FALSE,
+  discrete_step = 1,
   at = NULL,
   mc = FALSE,
   iter = 1000,
@@ -42,6 +44,10 @@ the QR components of the design matrix if arguments \code{formula}, \code{data},
 \item{coefficients}{the named vector of coefficients produced during the estimation (if not specified, it is extracted from the fitted model object).}
 
 \item{vcov}{the variance-covariance matrix to be used for computing standard errors (if not specified, it is extracted from the fitted model object).}
+
+\item{discrete}{logical. If TRUE, the function will compute the effect of a discrete change in \code{x}. If FALSE, the function will compute the partial derivative of \code{x}.}
+
+\item{discrete_step}{The size of a discrete change in \code{x} used in computations (used only if \code{discrete=TRUE}).}
 
 \item{at}{an optional named list of values of independent variables. These variables will be set to these value before computations.
 The remaining numeric variables (except \code{x} and \code{over}) will be set to their means. The remaining factor variables will be set
