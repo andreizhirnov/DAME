@@ -19,9 +19,6 @@ plot_me(
   mc = FALSE,
   iter = 1000,
   heatmap_dim = c(100, 100),
-  smooth = FALSE,
-  nlevels = 4,
-  gradient = c("#f2e6e7", "#f70429"),
   p = 0.05,
   weights = NULL
 )
@@ -60,14 +57,6 @@ If FALSE (default), the delta method will be used.}
 
 \item{heatmap_dim}{a numeric vector containing the number of rows and columns used for drawing the heatmap. Default = 100 each.}
 
-\item{smooth}{logical. If FALSE, the values of marginal effects are broken down into bins. The number of bins is specified using \code{nlevels}.}
-
-\item{nlevels}{the number of bins used for displaying marginal effects on the heatmap. Default = 4.}
-
-\item{gradient}{a string vector representing the color gradient for the heatamp. The first element
-is the color assigned to the lowest value of the marginal effect if the marginal effects are predominantly positive, and second element is the color of the
-assigned to its highest value. If marginal effects are predominantly negative, the color assignments are swapped.}
-
 \item{p}{the singificance level for the marginal effects. Default = 0.05.}
 
 \item{weights}{an optional vector of sampling weights.}
@@ -85,25 +74,30 @@ It returns a ggplot object, which allows users to customize the plot using funct
 \dontrun{
 data <- data.frame(y = rpois(10000, 10), x2 = rpois(10000, 5), x1 = rpois(10000, 3))
 y <- glm(y ~ x1 + x2 + x1*x2, data = data, family = "poisson")
-## A heatmap with 4 areas (the default)
+## A contour-plot with 4 areas
 library(ggplot2)
-plot_me(model = y, data = data, x = "x1", over = "x2")
+plot_me(model = y, data = data, x = "x1", over = "x2") +
+    scale_fill_steps(low="yellow", high="red", n.breaks=4)
 ## A heatmap with smooth transition of colors
-plot_me(model = y, data = data, x = "x1", over = "x2", smooth=TRUE)
+plot_me(model = y, data = data, x = "x1", over = "x2") +
+    scale_fill_gradient(low="yellow", high="red")
 ## A heatmap with histograms at the edges
 library(ggExtra)
-gt <- g + theme(legend.position="left")
+g <- plot_me(model = y, data = data, x = "x1", over = "x2")
+gt <- g + theme(legend.position="left") + scale_fill_gradient(low="yellow", high="red")
 ggExtra::ggMarginal(gt, type="histogram", data=data, x=z, y=x)
 ## if more control over the histograms needed:
-nbins <- sapply(data[c("x","z")], grDevices::nclass.FD)
+nbins <- sapply(data[c("x1","x2")], grDevices::nclass.FD)
 ggExtra::ggMarginal(gt, type="histogram", data=data, x=z, y=x,
-   xparams=list(bins=nbins['z']), yparams=list(bins=nbins['x']))
+   xparams=list(bins=nbins['x2']), yparams=list(bins=nbins['x1']))
 }
 \dontrun{
 ## logit
 m <- glm(any_dispute ~ flows.ln*polity2 + gdp_pc, data=strikes, family="binomial")
 summary(m)
-dame(model=m, x="flows.ln", over="polity2")
+plot_me(model = m, x = "flows.ln", over = "polity2") +
+    scale_fill_gradient(low="yellow", high="red") +
+    labs(x="Polity", y="ln(FDI flows)")
 }
 }
 \references{

@@ -22,11 +22,6 @@
 #' @param iter the number of interations used in Monte-Carlo simulations. Default = 1,000.
 #' @param weights an optional vector of sampling weights.
 #' @param heatmap_dim a numeric vector containing the number of rows and columns used for drawing the heatmap. Default = 100 each.
-#' @param smooth logical. If FALSE, the values of marginal effects are broken down into bins. The number of bins is specified using \code{nlevels}.
-#' @param nlevels the number of bins used for displaying marginal effects on the heatmap. Default = 4.
-#' @param gradient a string vector representing the color gradient for the heatamp. The first element
-#' is the color assigned to the lowest value of the marginal effect if the marginal effects are predominantly positive, and second element is the color of the
-#' assigned to its highest value. If marginal effects are predominantly negative, the color assignments are swapped.
 #' @param p the singificance level for the marginal effects. Default = 0.05.
 #' @author \code{plot_me} visualizes ME procedure described in Zhirnov, Moral, and Sedashov (2021) using the tools from \code{ggplot2} package.
 #' @references
@@ -39,25 +34,30 @@
 #' \dontrun{
 #' data <- data.frame(y = rpois(10000, 10), x2 = rpois(10000, 5), x1 = rpois(10000, 3))
 #' y <- glm(y ~ x1 + x2 + x1*x2, data = data, family = "poisson")
-#' ## A heatmap with 4 areas (the default)
+#' ## A contour-plot with 4 areas
 #' library(ggplot2)
-#' plot_me(model = y, data = data, x = "x1", over = "x2")
+#' plot_me(model = y, data = data, x = "x1", over = "x2") +
+#'     scale_fill_steps(low="yellow", high="red", n.breaks=4)
 #' ## A heatmap with smooth transition of colors
-#' plot_me(model = y, data = data, x = "x1", over = "x2", smooth=TRUE)
+#' plot_me(model = y, data = data, x = "x1", over = "x2") +
+#'     scale_fill_gradient(low="yellow", high="red")
 #' ## A heatmap with histograms at the edges
 #' library(ggExtra)
-#' gt <- g + theme(legend.position="left")
+#' g <- plot_me(model = y, data = data, x = "x1", over = "x2")
+#' gt <- g + theme(legend.position="left") + scale_fill_gradient(low="yellow", high="red")
 #' ggExtra::ggMarginal(gt, type="histogram", data=data, x=z, y=x)
 #' ## if more control over the histograms needed:
-#' nbins <- sapply(data[c("x","z")], grDevices::nclass.FD)
+#' nbins <- sapply(data[c("x1","x2")], grDevices::nclass.FD)
 #' ggExtra::ggMarginal(gt, type="histogram", data=data, x=z, y=x,
-#'    xparams=list(bins=nbins['z']), yparams=list(bins=nbins['x']))
+#'    xparams=list(bins=nbins['x2']), yparams=list(bins=nbins['x1']))
 #' }
 #' \dontrun{
 #' ## logit
 #' m <- glm(any_dispute ~ flows.ln*polity2 + gdp_pc, data=strikes, family="binomial")
 #' summary(m)
-#' dame(model=m, x="flows.ln", over="polity2")
+#' plot_me(model = m, x = "flows.ln", over = "polity2") +
+#'     scale_fill_gradient(low="yellow", high="red") +
+#'     labs(x="Polity", y="ln(FDI flows)")
 #'}
 #' @export
 
@@ -65,7 +65,7 @@ plot_me <- function(x, over, model = NULL, data = NULL,
                     link = NULL, formula = NULL, coefficients = NULL, vcov = NULL,
                     discrete = FALSE, discrete_step = 1,
                     at = NULL, mc = FALSE, iter = 1000,
-                    heatmap_dim = c(100,100), smooth=FALSE, nlevels=4, gradient=c("#f2e6e7", "#f70429"),
+                    heatmap_dim = c(100,100),
                     p = 0.05, weights = NULL) {
 
   if (!requireNamespace("ggplot2", quietly = TRUE)) {
@@ -151,18 +151,10 @@ plot_me <- function(x, over, model = NULL, data = NULL,
   plotdata <- merge(plotdata.hm, temp, by=c("x","over"), all=TRUE)
 
 # plot
-  nlevels <- round(nlevels,0)
-  if (abs(min(plotdata$est, na.rm=TRUE)) > max(plotdata$est, na.rm=TRUE)) gradient <- gradient[c(2,1)]
-  if (!smooth && nlevels >1) {
-    shading <- ggplot2::scale_fill_steps(low = gradient[1], high = gradient[2], n.breaks=nlevels[1])
-  } else {
-    shading <- ggplot2::scale_fill_gradient(low = gradient[1], high = gradient[2])
-  }
   ggplot2::ggplot(data = plotdata, ggplot2::aes_string(x = "over", y = "x")) +
     ggplot2::geom_raster(ggplot2::aes_string(fill = "est"), interpolate=FALSE) +
     ggplot2::geom_point(ggplot2::aes_string(size = "nobs", shape = "sig"), color = "black", data=plotdata[which(!is.na(plotdata$nobs)),]) +
     ggplot2::scale_shape_manual(values=c(16L,1L), drop=FALSE) +
-    shading +
     ggplot2::guides(fill = ggplot2::guide_colourbar(order = 1L), shape = ggplot2::guide_legend(order = 2L), size = "none") +
     ggplot2::labs(fill="Effect Size", shape=ggplot2::element_blank(), x=over, y=x) +
     ggplot2::theme_bw() +
