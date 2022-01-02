@@ -2,7 +2,7 @@
 % Please edit documentation in R/plot_me.R
 \name{plot_me}
 \alias{plot_me}
-\title{Vizualizing Marginal Effects}
+\title{Visualizing Marginal Effects}
 \usage{
 plot_me(
   x,
