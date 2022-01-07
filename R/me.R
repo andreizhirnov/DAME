@@ -56,7 +56,7 @@ me <- function(x, over = NULL, model = NULL, data = NULL, formula = NULL, link =
   check.required("data","data.frame", list=obj)
 
   calc[["formula"]] <- formula
-  if (is.null(calc[["formula"]])) calc[["formula"]] <- eval(model)[["formula"]]
+  if (is.null(calc[["formula"]])) calc[["formula"]] <- stats::formula(model)
   calc[["formula"]][[2L]] <- NULL
   check.required("formula","formula", list=calc)
 

@@ -64,7 +64,7 @@ ame <- function(x, model = NULL, data = NULL, formula = NULL, link = NULL,
   obj[["bin_id"]] <- rep(1, nrow(obj[["data"]]))
 
   calc[["formula"]] <- formula
-  if (is.null(calc[["formula"]])) calc[["formula"]] <- eval(model)[["formula"]]
+  if (is.null(calc[["formula"]])) calc[["formula"]] <- stats::formula(model)
   calc[["formula"]][[2L]] <- NULL
   check.required("formula","formula", list=calc)
 

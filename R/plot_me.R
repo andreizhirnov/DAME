@@ -75,7 +75,7 @@ plot_me <- function(x, over, model = NULL, data = NULL,
   args <- as.list(match.call())
   obj <- lapply(args[intersect(names(formals(me)), names(args))], eval)
 
-  if (is.null(formula)) formula <- model[["formula"]]
+  if (is.null(formula)) formula <- stats::formula(model)
   formula[[2L]] <- NULL
   check.required("formula","formula")
   allvars <- all.vars(formula)
