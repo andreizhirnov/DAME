@@ -154,12 +154,12 @@ simulated.me <- function(discrete, discrete_step=1, iter, coefficients, vcov, da
       if (inherits(bulk,'try-error') & nrow(mmat) < iter) {
       bulk <- matrix(NA,nrow=iter,ncol=nrow(mmat))
       for (i in 1L:nrow(mmat)) {
-        bulk[,i] <- dydm(mx(mmat = mmat[i,,drop=FALSE], coefficients = coef_matrix, offset = offset)) * dmli$dmdx(mmat = mmat[i,,drop=FALSE], data=data[i,,drop=FALSE], coefficients = coef_matrix, offset = offset)
+        bulk[,i] <- dydm(mx(mmat = mmat[i,,drop=FALSE], coefficients = coef_matrix, offset = offset)) * dmli$dmdx(mmat = mmat[i,,drop=FALSE], data=data[i,,drop=FALSE], coefficients = coef_matrix)
       }
       } else if (inherits(bulk,'try-error')) {
       bulk <- matrix(NA,nrow=iter,ncol=nrow(mmat))
       for (i in 1L:iter) {
-        bulk[i,] <- dydm(mx(mmat = mmat, coefficients = coef_matrix[i,,drop=FALSE], offset = offset)) * dmli$dmdx(mmat = mmat, data=data, coefficients = coef_matrix[i,,drop=FALSE], offset = offset)
+        bulk[i,] <- dydm(mx(mmat = mmat, coefficients = coef_matrix[i,,drop=FALSE], offset = offset)) * dmli$dmdx(mmat = mmat, data=data, coefficients = coef_matrix[i,,drop=FALSE])
       }
     }
   }
