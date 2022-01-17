@@ -139,26 +139,26 @@ simulated.me <- function(discrete, discrete_step=1, iter, coefficients, vcov, da
     bulk <- try(ym(mx(mmat = mmat_offset, coefficients = coef_matrix, offset = offset)) - ym(mx(mmat = mmat, coefficients = coef_matrix, offset = offset)), silent=TRUE)
     if (inherits(bulk,'try-error') & nrow(mmat) < iter) {
       bulk <- matrix(NA,nrow=iter,ncol=nrow(mmat))
-      for (i in 1L:nrow(mmat)) {
+      for (i in seq_len(nrow(mmat))) {
         bulk[,i] <- ym(mx(mmat = mmat_offset[i,,drop=FALSE], coefficients = coef_matrix, offset = offset)) - ym(mx(mmat = mmat[i,,drop=FALSE], coefficients = coef_matrix, offset = offset))
       }
     } else {
       bulk <- matrix(NA,nrow=iter,ncol=nrow(mmat))
-      for (i in 1L:iter) {
+      for (i in seq_len(iter)) {
         bulk[i,] <- ym(mx(mmat = mmat_offset, coefficients = coef_matrix[i,,drop=FALSE], offset = offset)) - ym(mx(mmat = mmat, coefficients = coef_matrix[i,,drop=FALSE], offset = offset))
       }
     }
   } else {
     dmli <- make.dmdx(formula = formula, bnames = beta.names, xvarname=x)
-      bulk <- try(dydm(mx(mmat = mmat, coefficients = coef_matrix, offset = offset)) * dmli$dmdx(mmat = mmat, data=data, coefficients = coef_matrix, offset = offset), silent=TRUE)
+      bulk <- try(dydm(mx(mmat = mmat, coefficients = coef_matrix, offset = offset)) * dmli$dmdx(mmat = mmat, data=data, coefficients = coef_matrix), silent=TRUE)
       if (inherits(bulk,'try-error') & nrow(mmat) < iter) {
       bulk <- matrix(NA,nrow=iter,ncol=nrow(mmat))
-      for (i in 1L:nrow(mmat)) {
+      for (i in seq_len(nrow(mmat))) {
         bulk[,i] <- dydm(mx(mmat = mmat[i,,drop=FALSE], coefficients = coef_matrix, offset = offset)) * dmli$dmdx(mmat = mmat[i,,drop=FALSE], data=data[i,,drop=FALSE], coefficients = coef_matrix)
       }
       } else if (inherits(bulk,'try-error')) {
       bulk <- matrix(NA,nrow=iter,ncol=nrow(mmat))
-      for (i in 1L:iter) {
+      for (i in seq_len(iter)) {
         bulk[i,] <- dydm(mx(mmat = mmat, coefficients = coef_matrix[i,,drop=FALSE], offset = offset)) * dmli$dmdx(mmat = mmat, data=data, coefficients = coef_matrix[i,,drop=FALSE])
       }
     }
