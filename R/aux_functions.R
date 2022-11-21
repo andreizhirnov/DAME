@@ -75,23 +75,24 @@ make.dmdx <- function(formula, bnames, xvarname) {
   dmdx.parts <- lapply(mx.parts, function(x) {
     tryCatch(stats::D(x,xvarname), error = function(e) {cat("Warning: Could not find the derivative of",x," and will replace it with zero"); 0})
   })
-  dmdb <- function(mmat, data) {
-    mmatd <- as.data.frame(mmat)
-    upddata <- c(list(Intercept=1),mmatd[setdiff(names(mmatd),names(data))], data)
-    do.call("cbind",lapply(mx.parts, function(x) eval(x, envir = upddata)))
-  }
-  d2mdxdb <- function(mmat, data) {
-    mmatd <- as.data.frame(mmat)
-    upddata <- c(list(Intercept=1),mmatd[setdiff(names(mmatd),names(data))], data)
-    do.call("cbind",lapply(dmdx.parts, function(x) eval(x, envir = upddata)))
-  }
-  dmdx <- function(mmat, data, coefficients) {
-    mmatd <- as.data.frame(mmat)
-    upddata <- c(list(Intercept=1),mmatd[setdiff(names(mmatd),names(data))], data)
-    parts <- do.call("cbind",lapply(dmdx.parts, function(x) eval(x, envir = upddata)))
-    coefficients %*% t(parts)
-  }
-  list(dmdx=dmdx,dmdb=dmdb,d2mdxdb=d2mdxdb)
+  return(list(dmdx.parts=dmdx.parts, mx.parts=mx.parts))
+}
+
+dmdb <- function(mmat, data, mx.parts) {
+  mmatd <- as.data.frame(mmat)
+  upddata <- c(list(Intercept=1),mmatd[setdiff(names(mmatd),names(data))], data)
+  do.call("cbind",lapply(mx.parts, eval, envir = upddata))
+}
+d2mdxdb <- function(mmat, data, dmdx.parts) {
+  mmatd <- as.data.frame(mmat)
+  upddata <- c(list(Intercept=1),mmatd[setdiff(names(mmatd),names(data))], data)
+  do.call("cbind",lapply(dmdx.parts, eval, envir = upddata))
+}
+dmdx <- function(mmat, data, coefficients, dmdx.parts) {
+  mmatd <- as.data.frame(mmat)
+  upddata <- c(list(Intercept=1),mmatd[setdiff(names(mmatd),names(data))], data)
+  parts <- do.call("cbind",lapply(dmdx.parts, eval, envir = upddata))
+  coefficients %*% t(parts)
 }
 
 find.central <- function(x,data,weights=NULL) {
@@ -150,16 +151,16 @@ simulated.me <- function(discrete, discrete_step=1, iter, coefficients, vcov, da
     }
   } else {
     dmli <- make.dmdx(formula = formula, bnames = beta.names, xvarname=x)
-      bulk <- try(dydm(mx(mmat = mmat, coefficients = coef_matrix, offset = offset)) * dmli$dmdx(mmat = mmat, data=data, coefficients = coef_matrix), silent=TRUE)
+      bulk <- try(dydm(mx(mmat = mmat, coefficients = coef_matrix, offset = offset)) * dmdx(mmat = mmat, data=data, coefficients = coef_matrix, dmdx.parts=dmli$dmdx.parts), silent=TRUE)
       if (inherits(bulk,'try-error') & nrow(mmat) < iter) {
       bulk <- matrix(NA,nrow=iter,ncol=nrow(mmat))
       for (i in seq_len(nrow(mmat))) {
-        bulk[,i] <- dydm(mx(mmat = mmat[i,,drop=FALSE], coefficients = coef_matrix, offset = offset)) * dmli$dmdx(mmat = mmat[i,,drop=FALSE], data=data[i,,drop=FALSE], coefficients = coef_matrix)
+        bulk[,i] <- dydm(mx(mmat = mmat[i,,drop=FALSE], coefficients = coef_matrix, offset = offset)) * dmdx(mmat = mmat[i,,drop=FALSE], data=data[i,,drop=FALSE], coefficients = coef_matrix, dmdx.parts=dmli$dmdx.parts)
       }
       } else if (inherits(bulk,'try-error')) {
       bulk <- matrix(NA,nrow=iter,ncol=nrow(mmat))
       for (i in seq_len(iter)) {
-        bulk[i,] <- dydm(mx(mmat = mmat, coefficients = coef_matrix[i,,drop=FALSE], offset = offset)) * dmli$dmdx(mmat = mmat, data=data, coefficients = coef_matrix[i,,drop=FALSE])
+        bulk[i,] <- dydm(mx(mmat = mmat, coefficients = coef_matrix[i,,drop=FALSE], offset = offset)) * dmdx(mmat = mmat, data=data, coefficients = coef_matrix[i,,drop=FALSE], dmdx.parts=dmli$dmdx.parts)
       }
     }
   }
@@ -193,15 +194,19 @@ analytical.me <- function(discrete, discrete_step=1, coefficients, vcov, data, x
     mmat_offset <- mmat_offset[,beta.names,drop=FALSE]
     m_1 <- as.vector(mx(mmat = mmat_offset, coefficients = coef_vect, offset = offset))
     est <- ym(m_1) - ym(m_0)
-    L <- dydm(m_1)*dmli$dmdb(mmat = mmat_offset, data=data_offset) - dydm(m_0)*dmli$dmdb(mmat = mmat, data=data)
+    L <- dydm(m_1)*dmdb(mmat = mmat_offset, data=data_offset, mx.parts=dmli$mx.parts) - dydm(m_0)*dmdb(mmat = mmat, data=data, mx.parts=dmli$mx.parts)
     } else {
-    est <- dydm(m_0)*as.vector(dmli$dmdx(mmat = mmat, data=data, coefficients = coef_vect))
-    L <- d2ydm2(m_0)*as.vector(dmli$dmdx(mmat = mmat, data=data, coefficients = coef_vect))*dmli$dmdb(mmat = mmat, data=data) + dydm(m_0)*dmli$d2mdxdb(mmat=mmat, data = data)
-  }
+    est <- dydm(m_0)*as.vector(dmdx(mmat = mmat, data=data, coefficients = coef_vect, dmdx.parts=dmli$dmdx.parts))
+    der2 <- d2mdxdb(mmat=mmat, data = data, dmdx.parts=dmli$dmdx.parts)
+    if (nrow(der2)==1L && nrow(mmat) >1L) {
+      der2 <- matrix(data = as.vector(der2), nrow = nrow(mmat), ncol = ncol(der2), byrow = TRUE)
+      }
+    L <- d2ydm2(m_0)*as.vector(dmdx(mmat = mmat, data=data, coefficients = coef_vect, dmdx.parts=dmli$dmdx.parts))*dmdb(mmat = mmat, data=data, mx.parts=dmli$mx.parts) + dydm(m_0)*der2
+    }
   if (!is.null(wmat)) {
     est <- matrix(est,nrow=1L) %*% wmat
     L <- t(wmat) %*% L
-    }
+  }
   var <- as.vector(apply(L,1L, function(x) (x %*% var_covar) %*% x))
   var[var < 0] <- 0
   se <- sqrt(var)

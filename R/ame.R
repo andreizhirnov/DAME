@@ -46,7 +46,6 @@ ame <- function(x, model = NULL, data = NULL, formula = NULL, link = NULL,
                discrete = FALSE, discrete_step = 1, at = NULL, mc = FALSE,
                pct = c(lb=2.5, ub=97.5), iter = 1000, weights = NULL) {
 
-
 # compute the derivatives
   link <- link[1]
   if (is.null(link)) link <- eval(model)[["family"]][["link"]]
@@ -121,7 +120,6 @@ ame <- function(x, model = NULL, data = NULL, formula = NULL, link = NULL,
       names(calc[["pct"]]) <- make.names(names(calc[["pct"]]))
 	}
   if (any(calc[["pct"]] > 100) || any(calc[["pct"]] <0)) stop("Error: 'pct' must be between 0 and 100", call. = FALSE)
-
   if (mc) {
     calc[["iter"]] <- as.integer(iter)
     if (calc[["iter"]] < 1) stop("Error: 'iter' must be positive.", call. = FALSE)
