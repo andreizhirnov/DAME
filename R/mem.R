@@ -44,95 +44,78 @@
 #' }
 #' @export
 
-
-## ! is it jsut a wrapper of me() when over=NULL and x is set to its mean?
 mem <- function(x, model = NULL, data = NULL, formula = NULL, link = NULL,
                 coefficients = NULL, vcov = NULL,
                 discrete = FALSE, discrete_step = 1, at = NULL, mc = FALSE,
                 pct = c(lb=2.5, ub=97.5), iter = 1000, weights = NULL) {
 
-  # compute the derivatives
-  link <- link[1]
-  if (is.null(link)) link <- eval(model)[["family"]][["link"]]
-  check.required("link","character")
-
-  if (!(link %in% c("logit","probit","cauchit","cloglog","identity","log","sqrt","1/mu^2","inverse"))) {
-    stop("Invalid link name. Valid links include 'logit','probit','cauchit','cloglog','identity','log','sqrt','1/mu^2','inverse'", call. = FALSE)
+  
+  ## extract arguments
+  link_id <- check_link(link = link, model = model)
+  data <- check_data(data=data, model=model)
+  f <- check_formula(formula=formula, model=model)
+  bnames <- stats::model.matrix(f, data[0L,]) |> colnames()
+  weights <- check_weights(weights=weights, data=data)
+  at <- check_at(at=at, data=data)
+### add the central stats for the remaining variables
+  tomeans <- setdiff(all.vars(f), names(at))
+  for (v in tomeans) {
+    at[[v]] <- find_central(x=v, data=data, weights=weights)
   }
-  calc <- make.dydm(link=link)
-
-  # make a data frame specific to MEM
-  if (is.null(data)) data <- eval(model)[["data"]]
-  check.required("data","data.frame")
-
-  calc[["formula"]] <- formula
-  if (is.null(calc[["formula"]])) calc[["formula"]] <- stats::formula(model)
-  calc[["formula"]][[2L]] <- NULL
-  check.required("formula","formula", list=calc)
-
-  allvars <- all.vars(calc[["formula"]])
-  tomeans <- setdiff(allvars, names(at))
-  names(tomeans) <- tomeans
-
-  at <- as.list(at)
-  if (length(at)>0) {
-    for (v in names(at)) {
-      if (is.character(at[[v]]) & !is.factor(at[[v]])) {
-        xle <-  model[["xlevels"]][[v]]
-        if (is.null(xle)) xle <- sort(unique(data[[v]]))
-        if (is.null(xle)) {
-          stop("Please convert the character variables in the 'at' list into factors", call. = FALSE)
-        }
-        if (any(!at[[v]] %in% xle)) {
-          stop(paste0("Could not find all listed values of ",v," in the model"), call. = FALSE)
-        }
-        at[[v]] <- factor(at[[v]], levels=xle)
-      }
-    }
+  bins <- make_bins(data = data)
+  coefficients <- check_coefs(bnames, coefficients, model)
+  vcov <- check_vcov(bnames, vcov, model)
+  probs <- make_bounds(pct)
+  
+  ## data pieces
+  obj <- makeframes(data=data, f=f, bins=bins, at=at, weights=weights)
+  ## model matrix
+  mmat <- make_mmat(f, obj[["samples"]])
+  offset <- make_offset(f, obj[["samples"]])
+  
+  ## adjust for an offset
+  if (!is.null(offset)) {
+    mmat <- cbind(offset, mmat)
+    coefficients <- c(1, coefficients)
+    vcov <- rbind(0, cbind(0,vcov))
   }
-
-  if (length(tomeans)>0) at <- c(at, lapply(tomeans, find.central, data=data, weights=weights))
-
-  calc[["data"]] <- makeframes.mem(at)
-
-  ## calculations
-  calc[["x"]] <- x
-  check.required("x","character", list=calc)
-  outside.formula <- setdiff(c(calc[["x"]], names(at)),allvars)
-  if (length(outside.formula)>0) stop(paste("Failed to find the following variables in the formula:",outside.formula,sep="\n"), call. = FALSE)
-  # check if x and over variables are included in the data
-  outside.data <- setdiff(calc[["x"]],names(data))
-  if (length(outside.data)>0) stop(paste("Failed to find the following variables in the dataset:",outside.data,sep="\n"), call. = FALSE)
-
-  # computation
-  calc[["discrete"]] <- discrete
-  calc[["discrete_step"]] <- discrete_step
-  calc[["coefficients"]] <- coefficients
-  if (is.null(calc[["coefficients"]])) calc[["coefficients"]] <- stats::coef(model)
-  check.required("coefficients", "numeric", list=calc)
-
-  calc[["vcov"]] <- vcov
-  if (is.null(calc[["vcov"]])) calc[["vcov"]] <- stats::vcov(model)
-  check.required("vcov", "matrix", list=calc)
-
-  calc[["pct"]] <- pct
-  check.required("pct", "numeric", list=calc)
-  if (is.null(names(calc[["pct"]]))) {
-	names(calc[["pct"]]) <- paste0("p",pct)
-	} else {
-      names(calc[["pct"]]) <- make.names(names(calc[["pct"]]))
-	}
-  if (any(calc[["pct"]] > 100) || any(calc[["pct"]] <0)) stop("Error: 'pct' must be between 0 and 100", call. = FALSE)
-
-  if (mc) {
-    calc[["iter"]] <- as.integer(iter)
-    if (calc[["iter"]] < 1) stop("Error: 'iter' must be positive.", call. = FALSE)
-    effects <- do.call("simulated.me", calc)
+  
+  ## second matrix
+  if (discrete) {
+    ## model matrix with a shift
+    mmat_p <- make_mmat_p(f, obj[["samples"]], x=x, discrete_step = discrete_step)
+    if (!is.null(offset)) mmat_p <- cbind(offset, mmat_p)    
+  } else { 
+    ## a matrix with cross partial derivatives of the linear prediction
+    xpdm <- make_d2mdxdb(f, obj[["samples"]], x=x)
+    if (!is.null(offset)) xpdm <- cbind(0, xpdm)
+  }
+  
+  ## calculations   
+  if (discrete && mc) { 
+    effects <- get_ddx_mc(coefficients, vcov,
+                          mmat, mmat_p,
+                          obj[["wei_locs"]], obj[["wei_vals"]],
+                          probs, link_id, iter)
+    
+  } else if (discrete) {
+    effects <- get_ddx_delta(coefficients, vcov,
+                             mmat, mmat_p,
+                             obj[["wei_locs"]], obj[["wei_vals"]],
+                             probs, link_id)
+  } else if (mc) {
+    effects <- get_dydx_mc(coefficients, vcov,
+                           mmat, xpdm,
+                           obj[["wei_locs"]], obj[["wei_vals"]],
+                           probs, link_id, iter)
   } else {
-    effects <- do.call("analytical.me", calc)
+    effects <- get_dydx_delta(coefficients, vcov,
+                              mmat, xpdm,
+                              obj[["wei_locs"]], obj[["wei_vals"]],
+                              probs, link_id)
   }
-  # merge with other variables
-  if (nrow(calc[["data"]]) > 0) effects <- cbind(effects, calc[["data"]])
-  rownames(effects) <- c()
+  colnames(effects) <- c("est","se", names(probs))
+  if (nrow(obj[["grid"]]) > 0) effects <- data.frame(effects, obj[["grid"]])
+  rownames(effects) <- c() 
   return(effects)
 }

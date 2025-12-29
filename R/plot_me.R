@@ -71,95 +71,114 @@ plot_me <- function(x, over, model = NULL, data = NULL,
   if (!requireNamespace("ggplot2", quietly = TRUE)) {
     stop("Package \"ggplot2\" needed for this function to work. Please install it.",call. = FALSE)
   }
-
-  args <- as.list(match.call())
-  obj <- lapply(args[intersect(names(formals(me)), names(args))], eval)
-
-  if (is.null(formula)) formula <- stats::formula(model)
-  formula[[2L]] <- NULL
-  check.required("formula","formula")
-  allvars <- all.vars(formula)
-
-  check.required("x","character")
-  check.required("over","character")
-
-  if (is.null(data)) data <- eval(model)[["data"]]
-  check.required("data","data.frame")
-
-  outside.formula <- setdiff(c(x,over,names(at)),allvars)
-  if (length(outside.formula)>0) stop(paste("Failed to find the following variables in the formula:",outside.formula,collapse="\n"), call. = FALSE)
-  outside.data <- setdiff(c(x,over),names(data))
-  if (length(outside.data)>0) stop(paste("Failed to find the following variables in the dataset:",outside.data,collapse="\n"), call. = FALSE)
-
-  if (length(weights) != nrow(data)) weights <- rep(1,nrow(data))
-
-  tomeans <- setdiff(allvars, c(x,over,names(at)))
-  names(tomeans) <- tomeans
-
-  obj[["at"]] <- as.list(at)
-  if (length(at)>0) {
-    for (v in names(obj[["at"]])) {
-      if (is.character(obj[["at"]][[v]]) & !is.factor(obj[["at"]][[v]])) {
-        xle <-  model[["xlevels"]][[v]]
-        if (is.null(xle)) xle <- sort(unique(data[[v]]))
-        if (is.null(xle)) {
-          stop("Please convert the character variables in the 'at' list into factors", call. = FALSE)
-        }
-        if (any(!obj[["at"]][[v]] %in% xle)) {
-          stop(paste0("Could not find all listed values of ",v," in the model"), call. = FALSE)
-        }
-        obj[["at"]][[v]] <- factor(obj[["at"]][[v]], levels=xle)
-      }
-    }
+ 
+## extract arguments
+  link_id <- check_link(link = link, model = model) 
+  data <- check_data(data=data, model=model)
+  f <- check_formula(formula=formula, model=model)
+  bnames <- stats::model.matrix(f, data[0L,]) |> colnames()
+  weights <- check_weights(weights=weights, data=data)
+  at <- check_at(at=at, data=data)
+  if (any(sapply(at, length)>1)) {
+    at <- lapply(at, `[`, 1L)
   }
-  if (length(tomeans)>0) obj[["at"]] <- c(obj[["at"]], lapply(tomeans, find.central, data=data, weights=weights))
-
-  obj[["pct"]] <- 100*c(p/2, (1-p/2))
-  names(obj[["pct"]]) <- c("lb","ub")
-  obj[["discrete"]] <- discrete[1L]
-  if (discrete) {
-    obj[["discrete_step"]] <- discrete_step[1L]
+  ### add the central stats for the remaining variables
+  tomeans <- setdiff(all.vars(f), c(names(at), x, over))
+  for (v in tomeans) {
+    at[[v]] <- find_central(x=v, data=data, weights=weights)
   }
-
-# data for heatmaps
+  probs <- setNames(100*c(p/2, (1-p/2)), c("lb","ub")) |> make_bounds()
+  coefficients <- check_coefs(bnames, coefficients, model)
+  vcov <- check_vcov(bnames, vcov, model) 
+  
+  ### make a compressed dataset by grid and send a copy to obj
   grid.li <- list(
-    x = seq(from = min(data[[x]], na.rm=TRUE), to = max(data[[x]], na.rm=TRUE), length.out = heatmap_dim[1]),
-    over = seq(from = min(data[[over]], na.rm=TRUE), to = max(data[[over]], na.rm=TRUE), length.out = heatmap_dim[2])
-    )
-  obj[["data"]] <- grid <- expand.grid(grid.li)
-  colnames(obj[["data"]]) <- c(x,over)
-  plotdata.hm <- do.call("me",obj)
-  plotdata.hm <- merge(grid, plotdata.hm, by.x=c("x","over"), by.y=c(x,over))
-  plotdata.hm[["sig"]] <- factor(rowSums(plotdata.hm[c("lb","ub")]>0) %% 2, levels=c(0,1), labels=paste0(c("p<","p>"),p))
+    x = seq(from = min(data[[x]], na.rm=TRUE), to = max(data[[x]], na.rm=TRUE), length.out = heatmap_dim[1L]),
+    over = seq(from = min(data[[over]], na.rm=TRUE), to = max(data[[over]], na.rm=TRUE), length.out = heatmap_dim[2L])
+  )
+  gdata <- expand.grid(grid.li)
+  colnames(gdata) <- c(x,over)
+  bins <- make_bins(bin_id=1:nrow(gdata), data = gdata)
 
-# data for scatterplots
-  temp <- aggregate(list("nobs" = weights), by = list(x=data[[x]], over=data[[over]]), FUN = sum, na.action=NULL, na.rm=TRUE)
-  for (j in c("x","over")) {
-    bm <- data.frame(y.n=grid.li[[j]][seq_len(length(grid.li[[j]])-1)],
-                     y.x=grid.li[[j]][seq_len(length(grid.li[[j]])-1)+1])
-    bm[1,"y.n"] <- -Inf
-    bm[nrow(bm),"y.x"] <- Inf
-    temp <- merge(temp, bm, by=NULL)
-    temp <- temp[temp[[j]]>temp$y.n & temp[[j]]<=temp$y.x,]
-    d.n <- abs(temp$y.n-temp[[j]])
-    d.x <- abs(temp$y.x-temp[[j]])
-    temp[[j]] <- temp$y.x
-    temp[[j]][which(d.x > d.n)] <- temp$y.n[which(d.x > d.n)]
-    temp <- temp[,c("nobs","x","over"), drop=FALSE]
+  ### calculate
+  obj <- makeframes(data=gdata, f=f, bins=bins, at=at, weights=NULL)
+  
+  ## model matrix
+  mmat <- make_mmat(f, obj[["samples"]])
+  offset <- make_offset(f, obj[["samples"]])
+  
+  ## adjust for an offset
+  if (!is.null(offset)) {
+    mmat <- cbind(offset, mmat)
+    coefficients <- c(1, coefficients)
+    vcov <- rbind(0, cbind(0,vcov))
   }
-  temp <- aggregate(nobs ~ x + over, data=temp, FUN = sum, na.action=NULL, na.rm=TRUE)
-  plotdata <- merge(plotdata.hm, temp, by=c("x","over"), all=TRUE)
+  
+  ## second matrix
+  if (discrete) {
+    ## model matrix with a shift
+    mmat_p <- make_mmat_p(f, obj[["samples"]], x=x, discrete_step = discrete_step)
+    if (!is.null(offset)) mmat_p <- cbind(offset, mmat_p)    
+  } else { 
+    ## a matrix with cross partial derivatives of the linear prediction
+    xpdm <- make_d2mdxdb(f, obj[["samples"]], x=x)
+    if (!is.null(offset)) xpdm <- cbind(0, xpdm)
+  }
 
+  ## calculations   
+  if (discrete && mc) { 
+    plotdata <- get_ddx_mc(coefficients, vcov,
+                          mmat, mmat_p,
+                          obj[["wei_locs"]], obj[["wei_vals"]],
+                          probs, link_id, iter)
+    
+  } else if (discrete) {
+    plotdata <- get_ddx_delta(coefficients, vcov,
+                             mmat, mmat_p,
+                             obj[["wei_locs"]], obj[["wei_vals"]],
+                             probs, link_id)
+  } else if (mc) {
+    plotdata <- get_dydx_mc(coefficients, vcov,
+                           mmat, xpdm,
+                           obj[["wei_locs"]], obj[["wei_vals"]],
+                           probs, link_id, iter)
+  } else {
+    plotdata <- get_dydx_delta(coefficients, vcov,
+                              mmat, xpdm,
+                              obj[["wei_locs"]], obj[["wei_vals"]],
+                              probs, link_id)
+  }
+  
+  colnames(plotdata) <- c("est","se", "lb", "ub")
+  plotdata <- data.frame(plotdata, gdata)
+  
+  ### find the number of observations by grid bin
+  if (is.null(weights)) weights <- 1.0
+  plotdata$nobs <- count_nearest(as.matrix(data[,c(x, over),drop=FALSE]),
+                        as.matrix(plotdata[,c(x, over),drop=FALSE]),
+                        weights) |> as.vector()
+# data for heatmaps
+  plotdata[["sig"]] <- factor(rowSums(plotdata[c("lb","ub")]>0) %% 2, 
+                              levels=c(0,1), 
+                              labels=paste0(c("p<","p>"),p))
+  
 # plot
-  ggplot2::ggplot(data = plotdata, ggplot2::aes_string(x = "over", y = "x")) +
-    ggplot2::geom_raster(ggplot2::aes_string(fill = "est"), interpolate=FALSE) +
-    ggplot2::geom_point(ggplot2::aes_string(size = "nobs", shape = "sig"), color = "black", data=plotdata[which(!is.na(plotdata$nobs)),]) +
-    ggplot2::scale_shape_manual(values=c(16L,1L), drop=FALSE) +
-    ggplot2::guides(fill = ggplot2::guide_colourbar(order = 1L), shape = ggplot2::guide_legend(order = 2L), size = "none") +
-    ggplot2::labs(fill="Effect Size", shape=ggplot2::element_blank(), x=over, y=x) +
+  ggplot2::ggplot(data = plotdata, ggplot2::aes(x = .data[[over]], y = .data[[x]])) +
+    ggplot2::geom_raster(ggplot2::aes(fill = est), interpolate=FALSE) +
+    ggplot2::geom_point(ggplot2::aes(size = nobs, shape = sig), 
+                        color = "black", 
+                        data=plotdata[which(plotdata$nobs>0),]) +
+    ggplot2::scale_shape_manual(values=c(1L,16L), drop=FALSE) +
+    ggplot2::guides(fill = ggplot2::guide_colourbar(order = 1L), 
+                    shape = ggplot2::guide_legend(order = 2L), 
+                    size = "none") +
+    ggplot2::labs(fill="Effect Size", 
+                  shape=NULL, 
+                  x=over, y=x) +
     ggplot2::theme_bw() +
     ggplot2::theme(panel.grid.minor = ggplot2::element_blank(),
-           panel.grid.major = ggplot2::element_blank(), panel.border = ggplot2::element_rect(colour = "black"),
+           panel.grid.major = ggplot2::element_blank(), 
+           panel.border = ggplot2::element_rect(colour = "black"),
            aspect.ratio = 1, legend.position = "right")
 }
 

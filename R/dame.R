@@ -38,7 +38,7 @@
 #' Zhirnov, Andrei, Mert Moral, and Evgeny Sedashov (2021). ``Taking Distributions Seriously: On the Interpretation
 #' of the Estimates of Interactive Nonlinear Models.'' Working paper.
 #' @return \code{dame} returns a data frame with the estimates of the distribution-weighted average marginal effects, standard errors, confidence intervals,
-#' the corresponding bin IDs (by default, the median value of the conditioning variable within the bin), and the targeted combinations of
+#' the corresponding bin IDs (by default, the mean value of the conditioning variable within the bin), and the targeted combinations of
 #' \code{at} values if specified.
 #' @examples
 #' ##poisson regression with 2 variables and an interaction between them
@@ -61,105 +61,72 @@
 dame <- function(x, over = NULL, model = NULL,
                  data = NULL, formula = NULL, link = NULL,
                  coefficients = NULL, vcov = NULL,
-                 nbins = 10, bin_id = NULL, use_distinct_values = FALSE,
+                 nbins = 10, bin_id = NULL, use_distinct_values = TRUE,
                  discrete = FALSE, discrete_step = 1, at = NULL, mc = FALSE,
                  pct = c(lb=2.5, ub=97.5), iter = 1000, weights = NULL) {
+## extract arguments
+  link_id <- check_link(link = link, model = model)
+  data <- check_data(data=data, model=model)
+  f <- check_formula(formula=formula, model=model)
+  bnames <- stats::model.matrix(f, data[0L,]) |> colnames()
+  at <- check_at(at=at, data=data)
+  weights <- check_weights(weights=weights, data=data)
+  bins <- make_bins(bin_id=bin_id, over=over, data=data, 
+                    use_distinct_values=use_distinct_values, nbins=nbins)
+  coefficients <- check_coefs(bnames, coefficients, model)
+  vcov <- check_vcov(bnames, vcov, model)
+  probs <- make_bounds(pct)
+  
+## data pieces
+  obj <- makeframes(data=data, f=f, bins=bins, at=at, weights=weights)
 
-# compute the derivatives
-  link <- link[1]
-  if (is.null(link)) link <- eval(model)[["family"]][["link"]]
-  check.required("link","character")
-  if (!(link %in% c("logit","probit","cauchit","cloglog","identity","log","sqrt","1/mu^2","inverse"))) {
-      stop("Invalid link name. Valid links include 'logit','probit','cauchit','cloglog','identity','log','sqrt','1/mu^2','inverse'", call. = FALSE)
+## model matrix
+  mmat <- make_mmat(f, obj[["samples"]])
+  offset <- make_offset(f, obj[["samples"]])
+
+## adjust for an offset
+  if (!is.null(offset)) {
+    mmat <- cbind(offset, mmat)
+    coefficients <- c(1, coefficients)
+    vcov <- rbind(0, cbind(0,vcov))
+  }
+  
+## second matrix
+  if (discrete) {
+    ## model matrix with a shift
+    mmat_p <- make_mmat_p(f, obj[["samples"]], x=x, discrete_step = discrete_step)
+    if (!is.null(offset)) mmat_p <- cbind(offset, mmat_p)    
+    } else { 
+    ## a matrix with cross partial derivatives of the linear prediction
+    xpdm <- make_d2mdxdb(f, obj[["samples"]], x=x)
+    if (!is.null(offset)) xpdm <- cbind(0, xpdm)
   }
 
-  calc <- make.dydm(link=link)
-
-# make a data frame specific to DAME
-  obj <- list(data=data)
-  if (is.null(obj[["data"]])) obj[["data"]] <- eval(model)[["data"]]
-  check.required("data","data.frame", list=obj)
-
-  obj[["bin_id"]] <- eval(bin_id)
-  if (!is.null(obj[["bin_id"]]) && !is.numeric(obj[["bin_id"]])) stop("'bin_id' must be a numeric vector", call. = FALSE)
-  if (!is.null(obj[["bin_id"]]) && length(obj[["bin_id"]]) != nrow(obj[["data"]])) stop("'bin_id' must have the same length as the dataset", call. = FALSE)
-  if (is.null(obj[["bin_id"]])) {
-    if (inherits(over, "character") && use_distinct_values) {
-      obj[["bin_id"]] <- obj[["data"]][[over]]
-    } else if (inherits(over, "character") && !is.null(obj[["data"]][[over]])) {
-      obj[["bin_id"]] <- make.bins(obj[["data"]][[over]], nbins)
+## calculations   
+  if (discrete && mc) { 
+    effects <- get_ddx_mc(coefficients, vcov,
+                        mmat, mmat_p,
+                        obj[["wei_locs"]], obj[["wei_vals"]],
+                        probs, link_id, iter)
+      
+    } else if (discrete) {
+      effects <- get_ddx_delta(coefficients, vcov,
+                           mmat, mmat_p,
+                           obj[["wei_locs"]], obj[["wei_vals"]],
+                           probs, link_id)
+    } else if (mc) {
+      effects <- get_dydx_mc(coefficients, vcov,
+                  mmat, xpdm,
+                  obj[["wei_locs"]], obj[["wei_vals"]],
+                  probs, link_id, iter)
     } else {
-      obj[["bin_id"]] <- rep(1, nrow(obj[["data"]]))
+      effects <- get_dydx_delta(coefficients, vcov,
+                            mmat, xpdm,
+                            obj[["wei_locs"]], obj[["wei_vals"]],
+                            probs, link_id)
     }
-  }
-  calc[["formula"]] <- formula
-  if (is.null(calc[["formula"]])) calc[["formula"]] <- stats::formula(model)
-  calc[["formula"]][[2L]] <- NULL
-  check.required("formula","formula", list=calc)
-
-  obj[["allvars"]] <- all.vars(calc[["formula"]])
-
-  calc[["x"]] <- x
-  check.required("x","character", list=calc)
-  outside.formula <- setdiff(c(calc[["x"]],over,names(at)),obj[["allvars"]])
-  if (length(outside.formula)>0) stop(paste("Failed to find the following variables in the formula:",outside.formula,sep="\n"), call. = FALSE)
-  # check if x and over variables are included in the data
-  outside.data <- setdiff(c(calc[["x"]],over),names(obj[["data"]]))
-  if (length(outside.data)>0) stop(paste("Failed to find the following variables in the dataset:",outside.data,sep="\n"), call. = FALSE)
-
-  if (length(at)>0) {
-    obj[["at"]] <- as.list(at)
-    for (v in names(obj[["at"]])) {
-      if (is.character(obj[["at"]][[v]]) & !is.factor(obj[["at"]][[v]])) {
-        xle <-  model[["xlevels"]][[v]]
-        if (is.null(xle)) xle <- sort(unique(obj[["data"]][[v]]))
-        if (is.null(xle)) {
-          stop("Please convert the character variables in the 'at' list into factors", call. = FALSE)
-        }
-        if (any(!obj[["at"]][[v]] %in% xle)) {
-          stop(paste0("Could not find all listed values of ",v," in the model"), call. = FALSE)
-        }
-        obj[["at"]][[v]] <- factor(obj[["at"]][[v]], levels=xle)
-      }
-    }
-  }
-
-  obj[["weights"]] <- eval(weights)
-  if (!is.null(obj[["weights"]]) && !is.numeric(obj[["weights"]])) stop("'weights' must be a numeric vector", call. = FALSE)
-  if (!is.null(obj[["weights"]]) && length(obj[["weights"]]) != nrow(obj[["data"]])) stop("'weights' must have the same length as the dataset", call. = FALSE)
-  if (is.null(obj[["weights"]])) obj[["weights"]] <- rep(1, nrow(obj[["data"]]))
-
-  calc <- c(calc, do.call("makeframes.dame", obj))
-
-# computation
-  calc[["discrete"]] <- discrete
-  calc[["discrete_step"]] <- discrete_step
-  calc[["coefficients"]] <- coefficients
-  if (is.null(calc[["coefficients"]])) calc[["coefficients"]] <- stats::coef(model)
-  check.required("coefficients", "numeric", list=calc)
-
-  calc[["vcov"]] <- vcov
-  if (is.null(calc[["vcov"]])) calc[["vcov"]] <- stats::vcov(model)
-  check.required("vcov", "matrix", list=calc)
-
-  calc[["pct"]] <- pct
-  check.required("pct", "numeric", list=calc)
-  if (is.null(names(calc[["pct"]]))) {
-	names(calc[["pct"]]) <- paste0("p",pct)
-	} else {
-      names(calc[["pct"]]) <- make.names(names(calc[["pct"]]))
-	}
-  if (any(calc[["pct"]] > 100) || any(calc[["pct"]] <0)) stop("Error: 'pct' must be between 0 and 100", call. = FALSE)
-
-  if (mc) {
-  calc[["iter"]] <- as.integer(iter)
-  if (calc[["iter"]] < 1) stop("Error: 'iter' must be positive.", call. = FALSE)
-  effects <- do.call("simulated.me", calc)
-  } else {
-    effects <- do.call("analytical.me", calc)
-  }
- # merge with other variables
-  if (nrow(calc[["grid"]]) > 0) effects <- cbind(effects, calc[["grid"]])
-  rownames(effects) <- c()
+  colnames(effects) <- c("est","se", names(probs))
+  if (nrow(obj[["grid"]]) > 0) effects <- data.frame(effects, obj[["grid"]])
+  rownames(effects) <- c() 
   return(effects)
 }
